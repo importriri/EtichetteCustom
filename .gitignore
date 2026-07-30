@@ -1,0 +1,19 @@
+# Build output
+build/
+dist/
+
+# NetBeans private settings
+nbproject/private/
+
+# Local test build output (CI uses out/)
+out/
+
+# Application settings live outside the repository:
+# %APPDATA%\EtichetteCustom on Windows, ~/.config/etichette-custom elsewhere
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Compiled development verification tools
+verifica/bin/

@@ -1,0 +1,29 @@
+name: tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      ETICHETTE_PRIVATE_DENYLIST: ${{ secrets.ETICHETTE_PRIVATE_DENYLIST }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: install build and display tools
+        run: sudo apt-get update && sudo apt-get install -y ant xvfb rsync
+
+      - name: verify source and standalone jar
+        run: ./verify.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EtichetteCustom-jar
+          path: dist/EtichetteCustom.jar
+          if-no-files-found: error
+          retention-days: 14

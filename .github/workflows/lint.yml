@@ -1,0 +1,21 @@
+name: lint
+
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: javac warnings as errors
+        run: |
+          mkdir -p out
+          javac --release 8 -encoding UTF-8 \
+            -Xlint:all,-options,-serial,-this-escape -Werror \
+            -d out $(find src test -name '*.java')

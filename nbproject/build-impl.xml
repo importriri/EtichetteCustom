@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="EtichetteCustom-impl" default="run" basedir="..">
+
+    <property file="nbproject/project.properties"/>
+
+    <target name="-init">
+        <mkdir dir="${build.classes.dir}"/>
+        <mkdir dir="${dist.dir}"/>
+        <mkdir dir="${build.test.classes.dir}"/>
+    </target>
+
+    <target name="compile" depends="-init" description="Compile sources">
+        <!-- javac compila e basta: i manuali sotto src/app/docs vengono letti
+             dal classpath a programma acceso, quindi vanno copiati accanto alle
+             classi o il JAR esce senza manuale -->
+        <copy todir="${build.classes.dir}">
+            <fileset dir="${src.dir}" excludes="**/*.java"/>
+        </copy>
+        <javac srcdir="${src.dir}"
+               destdir="${build.classes.dir}"
+               source="${javac.source}"
+               target="${javac.target}"
+               encoding="${source.encoding}"
+               includeantruntime="false"
+               debug="true"
+               classpath="${javac.classpath}"/>
+    </target>
+
+    <target name="jar" depends="compile" description="Build JAR">
+        <jar destfile="${dist.jar}" basedir="${build.classes.dir}">
+            <manifest>
+                <attribute name="Main-Class" value="${main.class}"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="run" depends="compile" description="Run application">
+        <java classname="${main.class}" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+            </classpath>
+            <jvmarg line="${run.jvmargs}"/>
+        </java>
+    </target>
+
+    <target name="debug" depends="compile" description="Debug application">
+        <nbjpdastart addressproperty="jpda.address" name="EtichetteCustom" transport="dt_socket">
+            <classpath><pathelement location="${build.classes.dir}"/></classpath>
+        </nbjpdastart>
+        <java classname="${main.class}" fork="true">
+            <classpath><pathelement location="${build.classes.dir}"/></classpath>
+            <jvmarg value="-Xdebug"/>
+            <jvmarg value="-Xrunjdwp:transport=dt_socket,address=${jpda.address}"/>
+        </java>
+    </target>
+
+    <target name="clean" description="Clean build artifacts">
+        <delete dir="${build.dir}"/>
+        <delete dir="${dist.dir}"/>
+    </target>
+
+    <target name="clean-and-build" depends="clean,jar"/>
+
+    <target name="-compile-tests" depends="compile">
+        <javac srcdir="${test.src.dir}"
+               destdir="${build.test.classes.dir}"
+               source="${javac.source}"
+               target="${javac.target}"
+               encoding="${source.encoding}"
+               includeantruntime="false"
+               debug="true"
+               classpath="${build.classes.dir}"/>
+    </target>
+
+    <!-- ogni suite esce con 1 se anche un solo controllo fallisce: failonerror
+         ferma la build lì, che è esattamente quello che deve fare -->
+    <target name="test" depends="-compile-tests" description="Run all test suites">
+        <java classname="app.core.QrCodeTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="app.core.SerialWindowTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="app.core.LabelModelTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="app.core.ExportTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="app.core.LayoutTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="app.core.PrintTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <!-- il manuale viaggia nel JAR: si prova che ci sia, in tutte e due le
+             lingue, e che il lettore di Markdown non lasci tag aperti -->
+        <java classname="app.ui.ManualRenderTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="app.config.LogTargetTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="app.ui.StartupSmokeTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="app.ui.LayoutAuditTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <!-- i difetti che si vedono solo su Windows: simboli che il font non
+             conosce, e schermo ingrandito al 150% -->
+        <java classname="app.ui.WindowsLookTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+        <java classname="app.ui.LayoutAuditTest" fork="true" failonerror="true">
+            <jvmarg value="-Detichette.uiscale=1.5"/>
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${build.test.classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
+
+    <target name="test-single" depends="-compile-tests"/>
+
+</project>
