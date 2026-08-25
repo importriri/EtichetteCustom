@@ -14,30 +14,19 @@ MIN_IDENTIFIER_LENGTH = 4
 
 def load_identifiers() -> tuple[str, ...]:
     raw = os.environ.get(ENV_NAME, "")
-    identifiers = tuple(
-        dict.fromkeys(
-            line.strip()
-            for line in raw.splitlines()
-            if line.strip()
-        )
-    )
+    identifiers = tuple(dict.fromkeys(line.strip() for line in raw.splitlines() if line.strip()))
     if not identifiers:
         raise RuntimeError(f"{ENV_NAME} is empty")
     too_short = [item for item in identifiers if len(item) < MIN_IDENTIFIER_LENGTH]
     if too_short:
         raise RuntimeError(
-            f"{ENV_NAME} contains an identifier shorter than "
-            f"{MIN_IDENTIFIER_LENGTH} characters"
+            f"{ENV_NAME} contains an identifier shorter than {MIN_IDENTIFIER_LENGTH} characters"
         )
     return identifiers
 
 
 def tracked_files() -> list[Path]:
-    result = subprocess.run(
-        ["git", "ls-files", "-z"],
-        check=True,
-        stdout=subprocess.PIPE,
-    )
+    result = subprocess.run(["git", "ls-files", "-z"], check=True, stdout=subprocess.PIPE)
     return [Path(item) for item in result.stdout.decode("utf-8").split("\0") if item]
 
 
@@ -88,10 +77,7 @@ def main() -> int:
     if violations:
         for path, line in sorted(violations):
             print(f"{path}:{line}: private identifier detected", file=sys.stderr)
-        print(
-            f"private identifier guard: {len(violations)} location(s) rejected",
-            file=sys.stderr,
-        )
+        print(f"private identifier guard: {len(violations)} location(s) rejected", file=sys.stderr)
         return 1
 
     print(f"private identifier guard: checked {len(paths)} tracked files")

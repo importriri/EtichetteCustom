@@ -1,19 +1,16 @@
 # Build output
 build/
-dist/
-
-# NetBeans private settings
-nbproject/private/
-
-# Local test build output (CI uses out/)
+prove-build/
 out/
+dist/
+*.class
+*.jar
 
-# Application settings live outside the repository:
-# %APPDATA%\EtichetteCustom on Windows, ~/.config/etichette-custom elsewhere
+# Generated verification media
+campioni/
+provino.png
 
-# OS
+# IDE and OS state
+nbproject/private/
 .DS_Store
 Thumbs.db
-
-# Compiled development verification tools
-verifica/bin/

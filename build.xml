@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="EtichetteCustom" default="run" basedir=".">
-    <description>Etichette Custom build file</description>
-    <import file="nbproject/build-impl.xml"/>
+<project name="EtichetteCustom" default="jar" basedir=".">
+    <property name="src.dir" value="src"/>
+    <property name="build.dir" value="build/ant"/>
+    <property name="dist.dir" value="dist"/>
+
+    <target name="clean">
+        <delete dir="${build.dir}"/>
+    </target>
+
+    <target name="compile">
+        <mkdir dir="${build.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"
+               source="8" target="8" encoding="UTF-8" debug="true"/>
+    </target>
+
+    <target name="jar" depends="clean,compile">
+        <mkdir dir="${dist.dir}"/>
+        <jar destfile="${dist.dir}/EtichetteCustom.jar" basedir="${build.dir}">
+            <manifest>
+                <attribute name="Main-Class" value="app.Avvio"/>
+            </manifest>
+        </jar>
+    </target>
 </project>

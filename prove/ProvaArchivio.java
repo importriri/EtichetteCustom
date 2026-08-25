@@ -1,0 +1,280 @@
+package prove;
+
+import app.archivio.Archivio;
+import app.archivio.Formato;
+import app.archivio.Registro;
+import app.codice.Correzione;
+import app.modello.Campo;
+import app.modello.Comportamento;
+import app.modello.Elemento;
+import app.modello.Etichetta;
+import app.modello.Libreria;
+import app.modello.Tipo;
+
+import java.io.File;
+import java.util.List;
+
+/**
+ * Salvataggio, ricarica e registro.
+ *
+ * Il giro completo - scrivo, rileggo, riscrivo - deve dare due file
+ * identici byte per byte: e' l'unico modo di essere sicuri che nessun
+ * dettaglio si perda per strada al secondo salvataggio.
+ */
+public final class ProvaArchivio {
+
+    private ProvaArchivio() { }
+
+    public static void esegui() throws Exception {
+        formato();
+        cartella();
+        registro();
+    }
+
+    private static void formato() {
+        Prove.suite("Formato - andata e ritorno su disco");
+
+        for (Etichetta originale : Libreria.iniziale()) {
+            String scritto = Formato.scrivi(originale);
+            Etichetta riletta = Formato.leggi(scritto);
+            Prove.uguale(originale.nome() + ": il nome torna",
+                    originale.nome(), riletta.nome());
+            Prove.vicino(originale.nome() + ": la larghezza torna",
+                    originale.larghezza(), riletta.larghezza(), 0.001);
+            Prove.uguale(originale.nome() + ": tornano tutti i campi",
+                    originale.campi().size(), riletta.campi().size());
+            Prove.uguale(originale.nome() + ": tornano tutti gli elementi",
+                    originale.elementi().size(), riletta.elementi().size());
+            Prove.uguale(originale.nome() + ": riscritto e' identico",
+                    scritto, Formato.scrivi(riletta));
+            if (originale.serie() != null) {
+                Prove.uguale(originale.nome() + ": la serie riparte da dove era",
+                        originale.serie().codice(originale.serie().prossimo()),
+                        riletta.serie().codice(riletta.serie().prossimo()));
+            }
+        }
+
+        Etichetta e = new Etichetta("Nome\tcon\ttab\ne a capo", 40, 20);
+        e.aggiungi(new Campo("strano", Comportamento.FISSO, "valore\tcon\ttab"));
+        e.aggiungi(new Elemento("El", Tipo.TESTO, "strano", 1, 1, 10));
+        Etichetta tornata = Formato.leggi(Formato.scrivi(e));
+        Prove.uguale("tabulazioni e a capo nel nome non spezzano il file",
+                e.nome(), tornata.nome());
+        Prove.uguale("nemmeno dentro un valore", "valore\tcon\ttab",
+                tornata.campo("strano").valore());
+
+        Etichetta conQr = new Etichetta("Con QR", 50, 30);
+        conQr.aggiungi(new Campo("c", Comportamento.FISSO, "X"));
+        Elemento q = new Elemento("QR", Tipo.QR, "c", 2, 2, 20);
+        q.correzione(Correzione.H);
+        q.rotazione(270);
+        conQr.aggiungi(q);
+        Etichetta rq = Formato.leggi(Formato.scrivi(conQr));
+        Etichetta finestra = Libreria.articolo();
+        Prove.vero("la finestra dell'incremento si puo' allargare",
+                finestra.cambiaFinestra(6));
+        Prove.uguale("e il codice corrente non cambia",
+                "740125.003_01-02_584700349",
+                finestra.serie().codice(finestra.serie().prossimo()));
+        Prove.uguale("cambiano solo le cifre che si muovono", 6, finestra.serie().cifre());
+        Prove.vero("nove cifre stanno ancora dentro il codice",
+                finestra.cambiaFinestra(9));
+        Prove.vero("dieci no: sforerebbero nell'underscore e traboccherebbero l'intero",
+                !finestra.cambiaFinestra(10));
+        Prove.uguale("e in quel caso la finestra resta com'era", 9, finestra.serie().cifre());
+
+        Etichetta senza = new Etichetta("Senza serie", 40, 20);
+        senza.aggiungi(new Campo("codice", Comportamento.FISSO, "PZ-000045"));
+        Prove.vero("un campo messo su progressivo si costruisce la sua serie",
+                senza.assicuraSerie("codice", 3));
+        Prove.uguale("prendendo le ultime cifre del valore che aveva",
+                45, senza.serie().prossimo());
+
+        Prove.uguale("il livello di correzione si salva", Correzione.H,
+                rq.elementi().get(0).correzione());
+        Prove.uguale("la rotazione si salva", 270, rq.elementi().get(0).rotazione());
+
+        Prove.esplode("un file di un altro programma viene rifiutato",
+                IllegalArgumentException.class, new Runnable() {
+                    @Override
+                    public void run() {
+                        Formato.leggi("ciao\nsono un file qualunque");
+                    }
+                });
+        Prove.esplode("un file vuoto viene rifiutato",
+                IllegalArgumentException.class, new Runnable() {
+                    @Override
+                    public void run() {
+                        Formato.leggi("");
+                    }
+                });
+
+        String conRigaIgnota = Formato.scrivi(Libreria.articolo())
+                + "cosa-che-non-conosco\tqualcosa\n";
+        Prove.vero("una riga sconosciuta viene saltata invece di far fallire tutto",
+                Formato.leggi(conRigaIgnota).elementi().size() == 4);
+
+        Etichetta copia = Libreria.articolo().copia();
+        Prove.uguale("la copia e' identica all'originale",
+                Formato.scrivi(Libreria.articolo()), Formato.scrivi(copia));
+        copia.elementi().get(0).x(99);
+        Prove.vero("ma e' davvero indipendente",
+                Libreria.articolo().elementi().get(0).x() != 99);
+    }
+
+    private static void cartella() throws Exception {
+        Prove.suite("Archivio - la cartella delle etichette");
+
+        File dove = temporanea("archivio");
+        Archivio a = new Archivio(dove);
+        List<Etichetta> prime = a.carica();
+        Prove.uguale("al primo avvio la vetrina non e' vuota", 5, prime.size());
+        Prove.uguale("e i file sono finiti su disco", 5, quantiFile(dove));
+
+        Etichetta articolo = prime.get(0);
+        articolo.serie().consuma(4);
+        a.salva(articolo);
+
+        Archivio b = new Archivio(dove);
+        List<Etichetta> riprese = b.carica();
+        Prove.uguale("riaprendo si ritrovano tutte", 5, riprese.size());
+        boolean contatoreSalvo = false;
+        for (Etichetta e : riprese) {
+            if (e.nome().equals(articolo.nome())) {
+                contatoreSalvo = e.serie().prossimo() == articolo.serie().prossimo();
+            }
+        }
+        Prove.vero("il contatore della serie sopravvive alla chiusura", contatoreSalvo);
+
+        Etichetta nuova = new Etichetta("Prova / con \\ caratteri strani: 100%", 30, 20);
+        nuova.aggiungi(new Campo("c", Comportamento.FISSO, "x"));
+        nuova.aggiungi(new Elemento("T", Tipo.TESTO, "c", 1, 1, 20));
+        b.salva(nuova);
+        Prove.vero("un nome pieno di caratteri strani diventa un nome di file sano",
+                b.fileDi(nuova).getName().matches("[a-z0-9-]+\\.etichetta"));
+
+        nuova.nome("Rinominata");
+        b.salva(nuova);
+        Prove.uguale("rinominare non lascia in giro il file vecchio", 6, quantiFile(dove));
+        Prove.vero("e il file nuovo ha il nome nuovo",
+                b.fileDi(nuova).getName().startsWith("rinominata"));
+
+        b.elimina(nuova);
+        Prove.uguale("eliminare toglie il file", 5, quantiFile(dove));
+
+        File rotto = new File(dove, "rovinato.etichetta");
+        scrivi(rotto, "non sono un formato valido");
+        Archivio c = new Archivio(dove);
+        Prove.uguale("un file rovinato non impedisce di aprire gli altri",
+                5, c.carica().size());
+    }
+
+    private static void registro() throws Exception {
+        Prove.suite("Registro - una riga per etichetta");
+
+        File dove = temporanea("registro");
+        Registro r = new Registro(dove);
+        Etichetta eti = Libreria.articolo();
+        String[] codici = eti.serie().giro(3);
+
+        File primo = r.annota(eti, codici, "Datamax E-4203");
+        Prove.vero("il file del giorno viene creato", primo.isFile());
+        String testo = leggi(primo);
+        Prove.uguale("tre etichette, tre righe piu' intestazione e commento",
+                5, testo.split("\n").length);
+        Prove.vero("ogni riga porta il numero del giro", testo.contains("\t" + ora(testo)));
+        Prove.vero("dentro c'e' il primo codice", testo.contains(codici[0]));
+        Prove.vero("dentro c'e' l'ultimo codice", testo.contains(codici[2]));
+        Prove.vero("e la stampante", testo.contains("Datamax E-4203"));
+        Prove.vero("il campo chiesto e' annotato col suo valore",
+                testo.contains("lotto=4802-X"));
+
+        r.annota(eti, codici, "Datamax E-4203");
+        String dopo = leggi(primo);
+        Prove.uguale("il secondo giro si accoda senza ripetere l'intestazione",
+                8, dopo.split("\n").length);
+
+        List<app.archivio.Registro.Giro> letti = r.ultimi(10);
+        Prove.uguale("rileggendo il registro tornano due giri", 2, letti.size());
+        Prove.uguale("il piu' recente e' in cima", eti.nome(), letti.get(0).etichetta());
+        Prove.uguale("con tre etichette dentro", 3, letti.get(0).quante());
+        Prove.uguale("dal primo codice", codici[0], letti.get(0).primo());
+        Prove.uguale("all'ultimo", codici[2], letti.get(0).ultimo());
+
+        Registro vuoto = new Registro(temporanea("registro-vuoto"));
+        Prove.uguale("un registro mai scritto torna una lista vuota, non un errore",
+                0, vuoto.ultimi(5).size());
+
+        Prove.esplode("un giro senza codici non si annota",
+                IllegalArgumentException.class, new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            new Registro(new File(".")).annota(Libreria.articolo(),
+                                    new String[0], "x");
+                        } catch (java.io.IOException impossibile) {
+                            throw new IllegalStateException(impossibile);
+                        }
+                    }
+                });
+    }
+
+    /** L'ora della prima riga di dati, per controllare le colonne. */
+    private static String ora(String registro) {
+        for (String riga : registro.split("\n")) {
+            if (!riga.startsWith("#") && !riga.startsWith("giro\t") && riga.contains("\t")) {
+                return riga.split("\t")[1];
+            }
+        }
+        return "";
+    }
+
+    /* ---- minuterie ---- */
+
+    static File temporanea(String etichetta) throws Exception {
+        File f = File.createTempFile("etichette-" + etichetta, "");
+        if (!f.delete() || !f.mkdirs()) {
+            throw new IllegalStateException("non riesco a preparare " + f);
+        }
+        f.deleteOnExit();
+        return f;
+    }
+
+    private static int quantiFile(File cartella) {
+        File[] f = cartella.listFiles();
+        int quanti = 0;
+        if (f != null) {
+            for (File x : f) {
+                if (x.isFile() && x.getName().endsWith(".etichetta")) {
+                    quanti++;
+                }
+            }
+        }
+        return quanti;
+    }
+
+    private static void scrivi(File f, String testo) throws Exception {
+        java.io.Writer w = new java.io.OutputStreamWriter(
+                new java.io.FileOutputStream(f), "UTF-8");
+        try {
+            w.write(testo);
+        } finally {
+            w.close();
+        }
+    }
+
+    private static String leggi(File f) throws Exception {
+        java.io.InputStream in = new java.io.FileInputStream(f);
+        try {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] b = new byte[4096];
+            int n;
+            while ((n = in.read(b)) > 0) {
+                out.write(b, 0, n);
+            }
+            return new String(out.toByteArray(), "UTF-8");
+        } finally {
+            in.close();
+        }
+    }
+}
