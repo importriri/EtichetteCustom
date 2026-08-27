@@ -106,7 +106,6 @@ public class Vetrina extends JPanel {
                     .azione(item -> commands.apri(item))
                     .menu(this::showMenu));
         }
-        grid.add(Tessera.nuova(item -> commands.nuova()));
         int n = query.isEmpty() ? all.size() : visible;
         count.setText(n + (n == 1 ? " modello" : " modelli"));
         grid.revalidate();
