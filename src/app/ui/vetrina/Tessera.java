@@ -1,5 +1,7 @@
 package app.ui.vetrina;
 
+import app.modello.Campo;
+import app.modello.Comportamento;
 import app.modello.Etichetta;
 import app.modello.Serie;
 import app.render.Disegno;
@@ -17,226 +19,212 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.JComponent;
 
-/**
- * Una tessera della vetrina.
- *
- * Non mostra un'icona ne' il nome di un modello: mostra l'etichetta vera,
- * disegnata dallo stesso codice che disegna il foglio grande e la stampa.
- * Quello che vedi nella tessera e' quello che esce dalla stampante.
- */
+/** Gallery card rendered from the same label renderer used for printing. */
 public class Tessera extends JComponent {
+    public interface Apri { void apri(Etichetta label); }
+    public interface Menu { void mostra(Etichetta label, int x, int y); }
 
-    public interface Apri {
-        void apri(Etichetta e);
-    }
-
-    /** Il puntino dei tre punti, o il tasto destro: le cose che si fanno all'etichetta. */
-    public interface Menu {
-        void mostra(Etichetta e, int x, int y);
-    }
-
-    private final Etichetta etichetta;
+    private final Etichetta label;
     private final SorgenteQr qr;
-    private final boolean nuova;
-    private boolean sopra;
-    private Apri apri;
+    private final boolean isNew;
+    private boolean hover;
+    private Apri open;
     private Menu menu;
 
-    public Tessera(Etichetta etichetta, SorgenteQr qr) {
-        this(etichetta, qr, false);
+    public Tessera(Etichetta label, SorgenteQr qr) {
+        this(label, qr, false);
     }
 
-    private Tessera(Etichetta etichetta, SorgenteQr qr, boolean nuova) {
-        this.etichetta = etichetta;
+    private Tessera(Etichetta label, SorgenteQr qr, boolean isNew) {
+        this.label = label;
         this.qr = qr;
-        this.nuova = nuova;
+        this.isNew = isNew;
         setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
-        setToolTipText(nuova ? "Parti da un foglio vuoto"
-                : etichetta.nome() + " \u2014 " + misura(etichetta));
+        setToolTipText(isNew ? "Parti da un foglio vuoto"
+                : label.nome() + " — " + size(label));
         addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                sopra = true;
+            @Override public void mouseEntered(MouseEvent event) {
+                hover = true;
                 repaint();
             }
 
-            @Override
-            public void mouseExited(MouseEvent e) {
-                sopra = false;
+            @Override public void mouseExited(MouseEvent event) {
+                hover = false;
                 repaint();
             }
 
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (Tessera.this.etichetta == null) {
-                    if (apri != null) {
-                        apri.apri(null);
-                    }
+            @Override public void mouseClicked(MouseEvent event) {
+                if (Tessera.this.label == null) {
+                    if (open != null) open.apri(null);
                     return;
                 }
-                if (menu != null && (e.isPopupTrigger()
-                        || javax.swing.SwingUtilities.isRightMouseButton(e)
-                        || suiPuntini(e))) {
-                    menu.mostra(Tessera.this.etichetta, e.getX(), e.getY());
+                if (menu != null && (event.isPopupTrigger()
+                        || javax.swing.SwingUtilities.isRightMouseButton(event)
+                        || overMenu(event))) {
+                    menu.mostra(Tessera.this.label, event.getX(), event.getY());
                     return;
                 }
-                if (apri != null) {
-                    apri.apri(Tessera.this.etichetta);
-                }
+                if (open != null) open.apri(Tessera.this.label);
             }
         });
     }
 
-    /** La tessera "+": stessa forma delle altre, un foglio vuoto dentro. */
-    public static Tessera nuova(Apri apri) {
-        Tessera t = new Tessera(null, null, true);
-        t.apri = apri;
-        return t;
+    public static Tessera nuova(Apri open) {
+        Tessera card = new Tessera(null, null, true);
+        card.open = open;
+        return card;
     }
 
-    public Tessera azione(Apri a) {
-        apri = a;
+    public Tessera azione(Apri action) {
+        open = action;
         return this;
     }
 
-    public Tessera menu(Menu m) {
-        menu = m;
+    public Tessera menu(Menu menu) {
+        this.menu = menu;
         return this;
     }
 
-    /** Il quadratino in alto a destra della tessera. */
-    private boolean suiPuntini(MouseEvent e) {
-        int lato = Stile.px(26);
-        return e.getX() > getWidth() - lato && e.getY() < lato;
+    private boolean overMenu(MouseEvent event) {
+        int side = Stile.px(30);
+        return event.getX() > getWidth() - side && event.getY() < side;
     }
 
-    public Etichetta etichetta() {
-        return etichetta;
+    public Etichetta etichetta() { return label; }
+
+    private static String size(Etichetta label) {
+        return num(label.larghezza()) + " × " + num(label.altezza()) + " mm";
     }
 
-    private static String misura(Etichetta e) {
-        return num(e.larghezza()) + " \u00d7 " + num(e.altezza()) + " mm";
+    private static String num(double value) {
+        String text = String.valueOf(Math.round(value * 10) / 10.0);
+        if (text.endsWith(".0")) text = text.substring(0, text.length() - 2);
+        return text.replace('.', ',');
     }
 
-    private static String num(double v) {
-        String s = String.valueOf(Math.round(v * 10) / 10.0);
-        if (s.endsWith(".0")) {
-            s = s.substring(0, s.length() - 2);
-        }
-        return s.replace('.', ',');
+    @Override public Dimension getPreferredSize() {
+        return new Dimension(Stile.px(258), Stile.px(236));
     }
 
-    @Override
-    public Dimension getPreferredSize() {
-        return new Dimension(Stile.px(226), Stile.px(224));
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
+    @Override protected void paintComponent(Graphics g) {
         Graphics2D g2 = Stile.liscio(g);
         try {
-            int w = getWidth();
-            int h = getHeight();
-            int r = Stile.px(9);
+            int width = getWidth();
+            int height = getHeight();
+            int radius = Stile.px(12);
 
-            if (nuova) {
-                g2.setColor(sopra ? Stile.BLU : Stile.S1);
-                g2.setStroke(new java.awt.BasicStroke(1f, java.awt.BasicStroke.CAP_BUTT,
-                        java.awt.BasicStroke.JOIN_MITER, 10f,
-                        new float[] { Stile.px(5), Stile.px(4) }, 0f));
-                g2.drawRoundRect(0, 0, w - 1, h - 1, r, r);
-                g2.setStroke(new java.awt.BasicStroke(1f));
-                g2.setColor(sopra ? Stile.BLU : Stile.SUB0);
-                g2.setFont(Stile.font(24, Font.PLAIN));
-                centra(g2, "+", w, h / 2 - Stile.px(12));
-                g2.setFont(Stile.normale());
-                centra(g2, "Nuova etichetta", w, h / 2 + Stile.px(16));
-                g2.setFont(Stile.piccolo());
-                g2.setColor(Stile.OV0);
-                centra(g2, "parti da un foglio vuoto", w, h / 2 + Stile.px(32));
+            if (isNew) {
+                paintNewCard(g2, width, height, radius);
                 return;
             }
 
-            Stile.riquadro(g2, 0, 0, w, h, r, Stile.MANTLE, sopra ? Stile.BLU : Stile.S0);
+            g2.setColor(new Color(35, 48, 74, hover ? 24 : 14));
+            g2.fillRoundRect(Stile.px(2), Stile.px(3), width - Stile.px(3),
+                    height - Stile.px(3), radius, radius);
+            Stile.riquadro(g2, 0, 0, width - Stile.px(3), height - Stile.px(4),
+                    radius, Color.WHITE, hover ? Stile.BLU : Stile.S0);
 
-            if (sopra) {
-                int lato = Stile.px(22);
-                int bx = w - lato - Stile.px(8);
-                int by = Stile.px(8);
-                Stile.riquadro(g2, bx, by, lato, lato, Stile.px(5), Stile.BASE, Stile.S1);
-                g2.setColor(Stile.SUB0);
-                for (int i = 0; i < 3; i++) {
-                    g2.fillOval(bx + Stile.px(5) + i * Stile.px(5), by + lato / 2 - 1, 2, 2);
-                }
-            }
+            if (hover) paintMenuButton(g2, width);
 
-            /* la vetrinetta: il banco su cui poggia la carta */
-            int m = Stile.px(11);
-            int vh = Stile.px(120);
-            Stile.riquadro(g2, m, m, w - 2 * m, vh, Stile.px(6), Stile.BANCO, null);
-            disegnaCarta(g2, m, m, w - 2 * m, vh);
+            int margin = Stile.px(12);
+            int previewHeight = Stile.px(138);
+            Stile.riquadro(g2, margin, margin, width - 2 * margin - Stile.px(3),
+                    previewHeight, Stile.px(8), Stile.BANCO, null);
+            paintPaper(g2, margin, margin, width - 2 * margin - Stile.px(3), previewHeight);
 
-            int y = m + vh + Stile.px(18);
+            int y = margin + previewHeight + Stile.px(20);
             g2.setFont(Stile.forte());
             g2.setColor(Stile.TESTO);
-            g2.drawString(etichetta.nome(), m, y);
+            g2.drawString(label.nome(), margin, y);
 
-            y += Stile.px(15);
+            y += Stile.px(17);
             g2.setFont(Stile.piccolo());
-            g2.setColor(Stile.OV0);
-            int campi = etichetta.campi().size();
-            g2.drawString(misura(etichetta) + " \u00b7 " + campi
-                    + (campi == 1 ? " campo" : " campi"), m, y);
+            g2.setColor(Stile.OV1);
+            g2.drawString(size(label), margin, y);
 
-            y += Stile.px(9);
-            g2.setColor(Stile.S0);
-            g2.drawLine(m, y, w - m, y);
-
-            y += Stile.px(15);
-            Serie s = etichetta.serie();
-            if (s == null) {
-                g2.setFont(Stile.piccolo());
-                g2.setColor(Stile.OV0);
-                g2.drawString("codice chiesto a ogni stampa", m, y);
-            } else {
-                String pre = s.prefisso();
-                if (pre.length() > 6) {
-                    pre = "\u2026" + pre.substring(pre.length() - 6);
-                }
-                Font f = Stile.mono(11);
-                int larg = CodiceView.disegna(g2, m, y, pre, s.finestra(s.prossimo()), f);
-                g2.setFont(Stile.piccolo());
-                g2.setColor(Stile.SUB0);
-                g2.drawString(" il prossimo", m + larg + Stile.px(3), y);
-            }
+            y += Stile.px(22);
+            paintState(g2, margin, y);
         } finally {
             g2.dispose();
         }
     }
 
-    private void centra(Graphics2D g, String s, int w, int baseline) {
-        FontMetrics fm = g.getFontMetrics();
-        g.drawString(s, (w - fm.stringWidth(s)) / 2, baseline);
+    private void paintNewCard(Graphics2D g2, int width, int height, int radius) {
+        Color border = hover ? Stile.BLU : Stile.S1;
+        Color background = hover ? Stile.BLU_SOFT : Color.WHITE;
+        Stile.riquadro(g2, 0, 0, width - Stile.px(3), height - Stile.px(4),
+                radius, background, border);
+
+        g2.setColor(hover ? Stile.BLU : Stile.SUB0);
+        g2.setFont(Stile.font(28, Font.PLAIN));
+        centered(g2, "+", width - Stile.px(3), height / 2 - Stile.px(14));
+        g2.setFont(Stile.forte());
+        centered(g2, "Nuova etichetta", width - Stile.px(3), height / 2 + Stile.px(18));
+        g2.setFont(Stile.piccolo());
+        g2.setColor(Stile.OV1);
+        centered(g2, "parti da un foglio vuoto", width - Stile.px(3), height / 2 + Stile.px(38));
     }
 
-    private void disegnaCarta(Graphics2D g, int bx, int by, int bw, int bh) {
-        double mmPx = Math.min((bw - Stile.px(14)) / etichetta.larghezza(),
-                (bh - Stile.px(14)) / etichetta.altezza());
-        int cw = (int) Math.round(etichetta.larghezza() * mmPx);
-        int ch = (int) Math.round(etichetta.altezza() * mmPx);
-        int cx = bx + (bw - cw) / 2;
-        int cy = by + (bh - ch) / 2;
+    private void paintMenuButton(Graphics2D g2, int width) {
+        int side = Stile.px(24);
+        int x = width - side - Stile.px(11);
+        int y = Stile.px(10);
+        Stile.riquadro(g2, x, y, side, side, Stile.px(6), Color.WHITE, Stile.S1);
+        g2.setColor(Stile.SUB0);
+        for (int i = 0; i < 3; i++) {
+            g2.fillOval(x + Stile.px(5) + i * Stile.px(5), y + side / 2 - 1, 2, 2);
+        }
+    }
 
-        g.setColor(new Color(0, 0, 0, 28));
-        g.fillRect(cx + 1, cy + 2, cw, ch);
+    private void paintState(Graphics2D g2, int x, int baseline) {
+        Serie series = label.serie();
+        if (series != null) {
+            String prefix = series.prefisso();
+            if (prefix.length() > 7) prefix = "…" + prefix.substring(prefix.length() - 6);
+            Font font = Stile.mono(11);
+            g2.setColor(Stile.SUB1);
+            g2.setFont(Stile.piccolo());
+            g2.drawString("Prossimo", x, baseline);
+            int codeX = x + Stile.px(58);
+            CodiceView.disegna(g2, codeX, baseline, prefix, series.finestra(series.prossimo()), font);
+            return;
+        }
 
-        Graphics2D g2 = (Graphics2D) g.create(cx, cy, cw, ch);
+        boolean asksAtPrint = false;
+        for (Campo field : label.campiUsati()) {
+            if (field.comportamento() == Comportamento.CHIESTO) {
+                asksAtPrint = true;
+                break;
+            }
+        }
+        g2.setFont(Stile.piccolo());
+        g2.setColor(Stile.SUB0);
+        g2.drawString(asksAtPrint ? "Valori alla stampa" : "Pronta da stampare", x, baseline);
+    }
+
+    private void centered(Graphics2D g, String text, int width, int baseline) {
+        FontMetrics metrics = g.getFontMetrics();
+        g.drawString(text, (width - metrics.stringWidth(text)) / 2, baseline);
+    }
+
+    private void paintPaper(Graphics2D g, int bx, int by, int bw, int bh) {
+        double mmPx = Math.min((bw - Stile.px(16)) / label.larghezza(),
+                (bh - Stile.px(16)) / label.altezza());
+        int paperWidth = (int) Math.round(label.larghezza() * mmPx);
+        int paperHeight = (int) Math.round(label.altezza() * mmPx);
+        int x = bx + (bw - paperWidth) / 2;
+        int y = by + (bh - paperHeight) / 2;
+
+        g.setColor(new Color(0, 0, 0, 24));
+        g.fillRect(x + Stile.px(2), y + Stile.px(3), paperWidth, paperHeight);
+
+        Graphics2D paper = (Graphics2D) g.create(x, y, paperWidth, paperHeight);
         try {
-            Disegno.disegna(g2, etichetta, mmPx, qr, 0);
+            Disegno.disegna(paper, label, mmPx, qr, 0);
         } finally {
-            g2.dispose();
+            paper.dispose();
         }
         g.setColor(Stile.S1);
-        g.drawRect(cx, cy, cw - 1, ch - 1);
+        g.drawRect(x, y, paperWidth - 1, paperHeight - 1);
     }
 }
