@@ -26,6 +26,7 @@ import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.print.PrinterException;
@@ -37,6 +38,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
+import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
 
 /** Protected print-preparation view with only run-time choices exposed. */
@@ -164,7 +166,10 @@ public final class Operatore extends JPanel {
         right.weightx = .30;
         right.weighty = 1;
         right.fill = GridBagConstraints.BOTH;
-        panel.add(controls(), right);
+        javax.swing.JComponent controls = controls();
+        controls.setPreferredSize(new Dimension(Stile.px(320), 10));
+        controls.setMinimumSize(new Dimension(Stile.px(280), 10));
+        panel.add(controls, right);
         return panel;
     }
 
@@ -178,9 +183,7 @@ public final class Operatore extends JPanel {
         title.setBorder(BorderFactory.createEmptyBorder(0, 0, Stile.px(12), 0));
         column.add(title, BorderLayout.NORTH);
 
-        JPanel list = new JPanel();
-        list.setOpaque(false);
-        list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+        ScrollableColumn list = new ScrollableColumn();
         values.clear();
         ranges.clear();
 
@@ -199,7 +202,10 @@ public final class Operatore extends JPanel {
             list.add(none);
         }
 
-        JScrollPane scroll = new JScrollPane(list);
+        JScrollPane scroll = new JScrollPane(list,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setName("run-fields");
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getViewport().setBackground(Stile.BASE);
         scroll.getVerticalScrollBar().setUnitIncrement(Stile.px(18));
@@ -289,7 +295,15 @@ public final class Operatore extends JPanel {
         });
 
         if (field.comportamento() == Comportamento.PROGRESSIVO) {
-            JPanel range = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(5), 0));
+            JLabel rangeLabel = new JLabel("Intervallo del giro");
+            rangeLabel.setFont(Stile.piccolo());
+            rangeLabel.setForeground(Stile.SUB0);
+            c.gridy++;
+            c.insets = new Insets(Stile.px(8), 0, Stile.px(3), 0);
+            card.add(rangeLabel, c);
+
+            JPanel range = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(6), 0));
+            range.setName("sequence-range");
             range.setOpaque(false);
             CodiceView from = new CodiceView("", "");
             CodiceView to = new CodiceView("", "");
@@ -302,7 +316,7 @@ public final class Operatore extends JPanel {
             range.add(arrow);
             range.add(to);
             c.gridy++;
-            c.insets = new Insets(Stile.px(8), 0, 0, 0);
+            c.insets = new Insets(0, 0, 0, 0);
             card.add(range, c);
         }
 
@@ -368,9 +382,9 @@ public final class Operatore extends JPanel {
                     Serie series = field.serie();
                     try {
                         String[] run = series.giro(count.intValue());
-                        entry.getValue()[0].testo(series.prefisso(), series.finestra(series.prossimo()));
+                        entry.getValue()[0].testo("", series.finestra(series.prossimo()));
                         String last = run[run.length - 1];
-                        entry.getValue()[1].testo(series.prefisso(),
+                        entry.getValue()[1].testo("",
                                 last.substring(Math.min(series.prefisso().length(), last.length())));
                     } catch (RuntimeException ex) {
                         error = ex.getMessage();
@@ -513,6 +527,33 @@ public final class Operatore extends JPanel {
             } finally {
                 g2.dispose();
             }
+        }
+    }
+
+    private static final class ScrollableColumn extends JPanel implements Scrollable {
+        ScrollableColumn() {
+            setOpaque(false);
+            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        }
+
+        @Override public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+            return Stile.px(18);
+        }
+
+        @Override public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+            return Math.max(Stile.px(80), visible.height - Stile.px(30));
+        }
+
+        @Override public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override public boolean getScrollableTracksViewportHeight() {
+            return false;
         }
     }
 }
