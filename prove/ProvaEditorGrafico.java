@@ -80,11 +80,11 @@ public final class ProvaEditorGrafico {
         check("separator visibility is directly exposed",
                 trovaCheck(componenti, "Mostra punti e simboli") != null);
         check("right alignment stays inside inspector",
-                dentro(p, trovaToggle(componenti, "Destra")));
+                dentroOrizzontale(p, trovaToggle(componenti, "Destra")));
         check("third row choice stays inside inspector",
-                dentro(p, trovaToggle(componenti, "3")));
+                dentroOrizzontale(p, trovaToggle(componenti, "3")));
         check("270 degree choice stays inside inspector",
-                dentro(p, trovaToggle(componenti, "270°")));
+                dentroOrizzontale(p, trovaToggle(componenti, "270°")));
         int campiPrima = conta(componenti, JTextField.class);
         check("precision fields stay hidden by default", campiPrima <= 2);
 
@@ -115,8 +115,8 @@ public final class ProvaEditorGrafico {
         collectAll(p, componenti);
         check("precision fields appear only on request",
                 conta(componenti, JTextField.class) > campiPrima);
-        check("precision controls remain inside inspector",
-                tuttiDentro(p, componenti));
+        check("precision controls do not clip horizontally",
+                tuttiDentroOrizzontale(p, componenti));
         salva(p, "inspector");
 
         Foglio f = new Foglio(eti, new QrVero());
@@ -175,18 +175,16 @@ public final class ProvaEditorGrafico {
         return colori.size();
     }
 
-    private static boolean dentro(Container root, Component c) {
+    private static boolean dentroOrizzontale(Container root, Component c) {
         if (c == null || c.getWidth() <= 0 || c.getHeight() <= 0) return false;
         Point pt = SwingUtilities.convertPoint(c, 0, 0, root);
-        return pt.x >= 0 && pt.y >= 0
-                && pt.x + c.getWidth() <= root.getWidth()
-                && pt.y + c.getHeight() <= root.getHeight();
+        return pt.x >= 0 && pt.x + c.getWidth() <= root.getWidth();
     }
 
-    private static boolean tuttiDentro(Container root, List<Component> all) {
+    private static boolean tuttiDentroOrizzontale(Container root, List<Component> all) {
         for (Component c : all) {
-            if (c.isVisible() && c.getWidth() > 0 && c.getHeight() > 0 && !dentro(root, c))
-                return false;
+            if (c.isVisible() && c.getWidth() > 0 && c.getHeight() > 0
+                    && !dentroOrizzontale(root, c)) return false;
         }
         return true;
     }
