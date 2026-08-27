@@ -1,6 +1,11 @@
 package prove;
 
-import app.modello.*;
+import app.modello.Campo;
+import app.modello.Comportamento;
+import app.modello.Elemento;
+import app.modello.Etichetta;
+import app.modello.Serie;
+import app.modello.Tipo;
 import app.stile.Stile;
 import app.ui.banco.Proprieta;
 import app.ui.finestre.Finestre;
@@ -14,18 +19,24 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
+/** Basic Swing layout checks that can run without operator interaction. */
 public final class ProvaInterfaccia {
     private static int ok;
     private static int ko;
 
     public static void main(String[] args) throws Exception {
         SwingUtilities.invokeAndWait(new Runnable() {
-            public void run() {
-                try { ProvaInterfaccia.run(); } catch (Exception e) { throw new RuntimeException(e); }
+            @Override public void run() {
+                try {
+                    ProvaInterfaccia.run();
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         });
         System.out.println(ok + " UI checks, " + ko + " failed");
@@ -34,70 +45,99 @@ public final class ProvaInterfaccia {
 
     private static void run() throws Exception {
         Stile.adottaFontDiSistema();
-        Etichetta e = new Etichetta("Etichetta con nome volutamente lungo", 50, 30);
-        Campo a = new Campo("codice", Comportamento.PROGRESSIVO, "CLIENTE-LUNGO-000001");
-        a.serie(new Serie("CLIENTE-LUNGO-000001", 6));
-        Campo b = new Campo("codice 2", Comportamento.PROGRESSIVO, "ALTRO-PROGRESSIVO-0900");
-        b.serie(new Serie("ALTRO-PROGRESSIVO-0900", 4));
-        Campo lotto = new Campo("lotto produzione molto lungo", Comportamento.CHIESTO, "LOTTO-2026-08-25-A");
-        e.aggiungi(a).aggiungi(b).aggiungi(lotto);
+        Etichetta label = new Etichetta("Etichetta con nome volutamente lungo", 50, 30);
+        Campo primary = new Campo("codice", Comportamento.PROGRESSIVO, "CLIENTE-LUNGO-000001");
+        primary.serie(new Serie("CLIENTE-LUNGO-000001", 6));
+        Campo secondary = new Campo("codice 2", Comportamento.PROGRESSIVO, "ALTRO-PROGRESSIVO-0900");
+        secondary.serie(new Serie("ALTRO-PROGRESSIVO-0900", 4));
+        Campo lot = new Campo("lotto produzione molto lungo", Comportamento.CHIESTO, "LOTTO-2026-08-25-A");
+        label.aggiungi(primary).aggiungi(secondary).aggiungi(lot);
+
         Elemento qr = new Elemento("QR cliente principale", Tipo.QR, "codice", 2.5, 2.5, 12);
-        e.aggiungi(qr);
-        e.aggiungi(new Elemento("Testo cliente", Tipo.CODICE, "codice", 17, 3, 28));
-        e.aggiungi(new Elemento("QR secondario", Tipo.QR, "codice 2", 2.5, 16, 10));
+        label.aggiungi(qr);
+        label.aggiungi(new Elemento("Testo cliente", Tipo.CODICE, "codice", 17, 3, 28));
+        label.aggiungi(new Elemento("QR secondario", Tipo.QR, "codice 2", 2.5, 16, 10));
 
-        Proprieta p = new Proprieta(new Runnable(){public void run(){}}, new Runnable(){public void run(){}});
-        p.mostra(e, qr);
-        p.setSize(new Dimension(Stile.px(286), Stile.px(780)));
-        layout(p);
+        Proprieta inspector = new Proprieta(new Runnable() {
+            @Override public void run() { }
+        }, new Runnable() {
+            @Override public void run() { }
+        });
+        inspector.mostra(label, qr);
+        inspector.setSize(new Dimension(Stile.px(286), Stile.px(780)));
+        layout(inspector);
+
         List<Component> allInspector = new ArrayList<Component>();
-        collectAll(p, allInspector);
+        collectAll(inspector, allInspector);
         int comboCount = 0;
-        int max = 0;
-        for (Component c : allInspector) {
-            if (c instanceof JComboBox) { comboCount++; max = Math.max(max, c.getWidth()); }
+        for (Component component : allInspector) {
+            if (component instanceof JComboBox) comboCount++;
         }
-        check("inspector contains linked-data combo", comboCount > 0);
-        check("linked-data controls get full card width", max >= Stile.px(185));
+        check("secondary content choices stay hidden by default", comboCount == 0);
+        check("shared content is summarized without a picker",
+                containsLabel(allInspector, "🔗"));
 
-        Method generale = Finestre.class.getDeclaredMethod("generale", Component.class, JTextField.class, JTextField.class);
-        generale.setAccessible(true);
-        JTextField ePath = new JTextField(new File(System.getProperty("user.home"),
+        Method general = Finestre.class.getDeclaredMethod(
+                "generale", Component.class, JTextField.class, JTextField.class);
+        general.setAccessible(true);
+        JTextField labelPath = new JTextField(new File(System.getProperty("user.home"),
                 "EtichetteCustom/layout/cliente/reparto/linea-A/modelli/etichette").getAbsolutePath());
-        JTextField lPath = new JTextField(new File(System.getProperty("user.home"),
+        JTextField logPath = new JTextField(new File(System.getProperty("user.home"),
                 "EtichetteCustom/log/2026/produzione/turno-serale/registro").getAbsolutePath());
-        JComponent g = (JComponent) generale.invoke(null, null, ePath, lPath);
-        g.setSize(Stile.px(700), Stile.px(480));
-        layout(g);
-        check("settings path field stays wide", Math.max(ePath.getWidth(), lPath.getWidth()) >= Stile.px(400));
+        JComponent settings = (JComponent) general.invoke(null, null, labelPath, logPath);
+        settings.setSize(Stile.px(700), Stile.px(480));
+        layout(settings);
+        check("settings path field stays wide",
+                Math.max(labelPath.getWidth(), logPath.getWidth()) >= Stile.px(400));
 
-        Method manuale = Finestre.class.getDeclaredMethod("manuale", boolean.class);
-        manuale.setAccessible(true);
-        JComponent m = (JComponent) manuale.invoke(null, Boolean.TRUE);
-        m.setSize(Stile.px(700), Stile.px(480));
-        layout(m);
+        Method manual = Finestre.class.getDeclaredMethod("manuale", boolean.class);
+        manual.setAccessible(true);
+        JComponent manualPanel = (JComponent) manual.invoke(null, Boolean.TRUE);
+        manualPanel.setSize(Stile.px(700), Stile.px(480));
+        layout(manualPanel);
         List<Component> allManual = new ArrayList<Component>();
-        collectAll(m, allManual);
+        collectAll(manualPanel, allManual);
         JScrollPane first = null;
-        for (Component c : allManual) if (c instanceof JScrollPane) { first = (JScrollPane) c; break; }
+        for (Component component : allManual) {
+            if (component instanceof JScrollPane) {
+                first = (JScrollPane) component;
+                break;
+            }
+        }
         check("manual has its own readable scroll area", first != null);
         check("manual viewport is not tiny", first != null && first.getWidth() >= Stile.px(500));
     }
 
-    private static void layout(Container c) {
-        c.doLayout();
-        for (Component x : c.getComponents()) if (x instanceof Container) layout((Container) x);
+    private static boolean containsLabel(List<Component> all, String text) {
+        for (Component component : all) {
+            if (component instanceof JLabel
+                    && ((JLabel) component).getText() != null
+                    && ((JLabel) component).getText().contains(text)) return true;
+        }
+        return false;
+    }
+
+    private static void layout(Container container) {
+        container.doLayout();
+        for (Component child : container.getComponents()) {
+            if (child instanceof Container) layout((Container) child);
+        }
     }
 
     private static void collectAll(Container root, List<Component> out) {
-        for (Component c : root.getComponents()) {
-            out.add(c);
-            if (c instanceof Container) collectAll((Container) c, out);
+        for (Component component : root.getComponents()) {
+            out.add(component);
+            if (component instanceof Container) collectAll((Container) component, out);
         }
     }
 
     private static void check(String name, boolean condition) {
-        if (condition) { ok++; System.out.println("  ok   " + name); }
-        else { ko++; System.out.println("  FAIL " + name); }
+        if (condition) {
+            ok++;
+            System.out.println("  ok   " + name);
+        } else {
+            ko++;
+            System.out.println("  FAIL " + name);
+        }
     }
 }
