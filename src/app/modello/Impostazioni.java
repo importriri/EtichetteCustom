@@ -16,7 +16,12 @@ public class Impostazioni {
     private int risoluzioneDpi = 203;
 
     public Impostazioni() {
-        File casa = new File(System.getProperty("user.home", "."), "EtichetteCustom");
+        /*
+         * v2 usa deliberatamente una radice nuova: un PC di produzione che
+         * aveva provato versioni precedenti parte pulito, senza import impliciti.
+         * I vecchi dati restano intatti nella vecchia cartella.
+         */
+        File casa = new File(System.getProperty("user.home", "."), "EtichetteCustom-v2");
         file = new File(casa, "impostazioni.properties");
         cartellaLog = new File(casa, "log");
         cartellaEtichette = new File(casa, "etichette");
@@ -60,7 +65,7 @@ public class Impostazioni {
         File tmp = new File(parent, file.getName() + ".tmp");
         FileOutputStream out = new FileOutputStream(tmp);
         try {
-            p.store(out, "Etichette Custom");
+            p.store(out, "Etichette Custom v2");
             out.getFD().sync();
         } finally { out.close(); }
         if (file.exists() && !file.delete()) {
