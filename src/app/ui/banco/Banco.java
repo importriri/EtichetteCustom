@@ -96,7 +96,7 @@ public class Banco extends JPanel {
                 JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
                 JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         inspectorScroll.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, Stile.S0));
-        inspectorScroll.setPreferredSize(new Dimension(Stile.px(348), 10));
+        inspectorScroll.setPreferredSize(new Dimension(Math.min(Stile.px(348), 480), 10));
         inspectorScroll.getVerticalScrollBar().setUnitIncrement(Stile.px(20));
         add(inspectorScroll, BorderLayout.EAST);
 
@@ -114,11 +114,8 @@ public class Banco extends JPanel {
         });
 
         shortcuts();
-        if (!label.elementi().isEmpty()) {
-            canvas.selezione(label.elementi().get(0));
-        } else {
-            inspector.mostra(label, null);
-        }
+        canvas.selezione(null);
+        inspector.mostra(label, null);
         refreshElements();
         refreshStatus();
         refreshSize();
@@ -153,7 +150,7 @@ public class Banco extends JPanel {
 
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(10), 0));
         left.setOpaque(false);
-        Bottone backButton = Bottone.piatto("‹  Vetrina");
+        Bottone backButton = Bottone.piatto("‹  Etichette");
         backButton.addActionListener(e -> {
             salva();
             back.run();
@@ -171,26 +168,19 @@ public class Banco extends JPanel {
         name.add(title);
         name.add(sizeLabel);
         left.add(name);
-
-        Bottone swap = Bottone.piatto("⇄");
-        swap.setToolTipText("Scambia larghezza e altezza");
-        swap.addActionListener(e -> {
-            history.segna(label);
-            canvas.ruotaEtichetta();
-            refreshSize();
-            inspector.mostra(label, canvas.selezione());
-        });
-        left.add(swap);
         panel.add(left, BorderLayout.WEST);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, Stile.px(7), 0));
         right.setOpaque(false);
-        Bottone undo = Bottone.piatto("↶");
+        Bottone undo = Bottone.piatto("↩");
         undo.setToolTipText("Annulla  Ctrl+Z");
         undo.addActionListener(e -> undo());
-        Bottone redo = Bottone.piatto("↷");
+        Bottone redo = Bottone.piatto("↪");
         redo.setToolTipText("Ripeti  Ctrl+Y");
         redo.addActionListener(e -> redo());
+        Bottone more = Bottone.piatto("⋯");
+        more.setToolTipText("Altre azioni");
+        more.addActionListener(e -> showMore(more));
         Bottone settingsButton = Bottone.piatto("⚙");
         settingsButton.setToolTipText("Impostazioni");
         settingsButton.addActionListener(e -> {
@@ -204,12 +194,40 @@ public class Banco extends JPanel {
         });
         right.add(undo);
         right.add(redo);
+        right.add(more);
         right.add(settingsButton);
         right.add(print);
         panel.add(right, BorderLayout.EAST);
 
         refreshSize();
         return panel;
+    }
+
+    private void showMore(Component anchor) {
+        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+        javax.swing.JMenuItem swap = new javax.swing.JMenuItem("Scambia larghezza e altezza");
+        swap.setFont(Stile.normale());
+        swap.addActionListener(e -> {
+            history.segna(label);
+            canvas.ruotaEtichetta();
+            refreshSize();
+            inspector.mostra(label, canvas.selezione());
+        });
+        menu.add(swap);
+
+        javax.swing.JMenuItem data = new javax.swing.JMenuItem("Dati avanzati…");
+        data.setFont(Stile.normale());
+        data.addActionListener(e -> advancedData());
+        menu.add(data);
+        menu.show(anchor, 0, anchor.getHeight());
+    }
+
+    private void advancedData() {
+        history.segna(label);
+        Finestre.campi(this, label);
+        refreshElements();
+        canvas.repaint();
+        inspector.mostra(label, canvas.selezione());
     }
 
     private void shortcuts() {
@@ -316,7 +334,7 @@ public class Banco extends JPanel {
                 BorderFactory.createMatteBorder(0, 0, 0, 1, Stile.S0),
                 BorderFactory.createEmptyBorder(
                         Stile.px(12), Stile.px(9), Stile.px(12), Stile.px(9))));
-        panel.setPreferredSize(new Dimension(Stile.px(168), 10));
+        panel.setPreferredSize(new Dimension(Math.min(Stile.px(168), 260), 10));
 
         panel.add(group("Aggiungi"));
         panel.add(new Voce("T", "Testo").azione(() -> addElement(Tipo.TESTO)));
@@ -333,16 +351,7 @@ public class Banco extends JPanel {
         panel.add(group("Azioni"));
         panel.add(new Voce("⧉", "Duplica").coda("Ctrl+D").azione(this::duplicate));
         panel.add(new Voce("⌦", "Elimina").coda("Canc").azione(this::deleteSelected));
-
         panel.add(Box.createVerticalGlue());
-        panel.add(group("Altro"));
-        panel.add(new Voce("≡", "Dati avanzati…").azione(() -> {
-            history.segna(label);
-            Finestre.campi(this, label);
-            refreshElements();
-            canvas.repaint();
-            inspector.mostra(label, canvas.selezione());
-        }));
         return panel;
     }
 
@@ -425,7 +434,7 @@ public class Banco extends JPanel {
         if (selected == null) return;
         history.segna(label);
         label.rimuovi(selected);
-        canvas.selezione(label.elementi().isEmpty() ? null : label.elementi().get(0));
+        canvas.selezione(null);
         canvas.repaint();
     }
 
