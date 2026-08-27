@@ -72,52 +72,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  sync-release-media:
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/ux-polish-2.0.2'
-    needs: [test, windows-ui]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ux-polish-2.0.2
-      - uses: actions/download-artifact@v4
-        with:
-          name: EtichetteCustom-windows-ui-audit
-          path: audit
-      - name: Build repository media from verified Windows evidence
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y imagemagick
-          cp audit/windows-server-2025-flow-gallery-15.png docs/screenshot-vetrina.png
-          cp audit/windows-server-2025-flow-workspace-15.png docs/screenshot-editor.png
-          cp audit/windows-server-2025-flow-operator-15.png docs/screenshot-operatore.png
-          convert audit/windows-server-2025-flow-gallery-15.png \
-            -resize '960x600^' -gravity center -extent 960x600 /tmp/gallery.png
-          convert audit/windows-server-2025-flow-workspace-15.png \
-            -resize '960x600^' -gravity center -extent 960x600 /tmp/editor.png
-          convert audit/windows-server-2025-flow-operator-15.png \
-            -resize '960x600^' -gravity center -extent 960x600 /tmp/operator.png
-          convert -delay 120 /tmp/gallery.png \
-            -delay 160 /tmp/editor.png \
-            -delay 160 /tmp/operator.png \
-            -delay 120 /tmp/editor.png \
-            -loop 0 -layers Optimize docs/demo.gif
-          java -Djava.awt.headless=true -cp build:prove-build prove.ProvaMedia 2>/dev/null || true
-      - name: Commit verified repository media
-        run: |
-          set -euo pipefail
-          git config user.name "Sid Ahmed Riri"
-          git config user.email "import.riri@gmail.com"
-          git add docs/demo.gif docs/screenshot-vetrina.png docs/screenshot-editor.png docs/screenshot-operatore.png
-          git diff --cached --quiet && exit 0
-          git commit -m "Sync verified release media [skip ci]"
-          git push origin HEAD:ux-polish-2.0.2
-
   release:
     if: >-
       github.event_name == 'push' &&
