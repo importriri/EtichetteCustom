@@ -43,6 +43,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
     private boolean showPrecision;
     private boolean showContentOptions;
     private boolean showLinkPicker;
+    private boolean showSharedOptions;
     private boolean showQrOptions;
 
     public Proprieta(Runnable before, Runnable after) {
@@ -145,14 +146,13 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         card.largo(new Stato(behaviorLabel(field.comportamento()),
                 behaviorColor(field.comportamento()), behaviorBackground(field.comportamento())));
 
-        if (field.comportamento() == Comportamento.PROGRESSIVO) {
-            addSequenceControls(card, label, element, field);
-        } else if (field.comportamento() == Comportamento.CHIESTO) {
+        if (field.comportamento() == Comportamento.CHIESTO) {
             card.nota("Lo chiederemo solo quando prepari la stampa.");
         }
 
-        JToggleButton behavior = choice(showContentOptions ? "Nascondi opzioni" : "Cambia comportamento…",
+        JToggleButton behavior = choice(showContentOptions ? "Nascondi" : "Come cambia…",
                 showContentOptions);
+        behavior.setName("content-behavior");
         behavior.addActionListener(e -> {
             showContentOptions = behavior.isSelected();
             mostra(label, element);
@@ -161,28 +161,37 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
 
         if (showContentOptions) {
             card.riga("Durante la stampa", behaviorChoices(label, element, field, value));
+            if (field.comportamento() == Comportamento.PROGRESSIVO) {
+                addSequenceControls(card, label, element, field);
+            }
         }
 
         int users = label.elementiPerCampo(field).size();
         if (users > 1) {
-            JLabel shared = new JLabel("🔗  " + NomiDati.tipoUso(label, field));
-            shared.setFont(Stile.piccolo().deriveFont(java.awt.Font.BOLD));
-            shared.setForeground(Stile.BLU);
+            JToggleButton shared = choice("🔗  " + NomiDati.tipoUso(label, field), showSharedOptions);
+            shared.setName("shared-content");
             shared.setToolTipText(NomiDati.uso(label, field));
+            shared.addActionListener(e -> {
+                showSharedOptions = shared.isSelected();
+                mostra(label, element);
+            });
             card.largo(shared);
 
-            Bottone detach = Bottone.normale("Rendi indipendente");
-            detach.setToolTipText("Usa un contenuto separato solo per questo elemento");
-            detach.addActionListener(e -> {
-                if (!silent) {
-                    mark();
-                    label.rendiIndipendente(element);
-                    showLinkPicker = false;
-                    mostra(label, element);
-                    changed();
-                }
-            });
-            card.largo(detach);
+            if (showSharedOptions) {
+                Bottone detach = Bottone.normale("Rendi indipendente");
+                detach.setToolTipText("Usa un contenuto separato solo per questo elemento");
+                detach.addActionListener(e -> {
+                    if (!silent) {
+                        mark();
+                        label.rendiIndipendente(element);
+                        showSharedOptions = false;
+                        showLinkPicker = false;
+                        mostra(label, element);
+                        changed();
+                    }
+                });
+                card.largo(detach);
+            }
         } else if (label.campi().size() > 1) {
             JToggleButton link = choice(showLinkPicker ? "Annulla" : "Usa contenuto esistente…",
                     showLinkPicker);
