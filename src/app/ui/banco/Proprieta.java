@@ -17,7 +17,6 @@ import app.ui.dati.NomiDati;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
@@ -70,7 +69,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
 
         silent = true;
         try {
-            add(title(label, element));
+            add(title(element));
             add(Scheda.spazio(14));
             if (element.tipo() != Tipo.LINEA) {
                 add(content(label, element));
@@ -111,29 +110,12 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         repaint();
     }
 
-    private Component title(Etichetta label, Elemento element) {
-        JPanel wrap = new JPanel();
-        wrap.setOpaque(false);
-        wrap.setLayout(new BoxLayout(wrap, BoxLayout.Y_AXIS));
-        wrap.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(8), 0));
-        row.setOpaque(false);
-        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+    private Component title(Elemento element) {
         JLabel name = new JLabel(element.nome());
         name.setFont(Stile.titolo());
         name.setForeground(Stile.TESTO);
-        row.add(name);
-        row.add(new Badge(element.tipo().etichetta(), Stile.BLU_SOFT, Stile.BLU));
-        wrap.add(row);
-
-        Campo field = label.campo(element.campo());
-        if (field != null && label.elementiPerCampo(field).size() > 1) {
-            JTextArea shared = secondaryText("Collegato a " + NomiDati.uso(label, field));
-            shared.setBorder(BorderFactory.createEmptyBorder(Stile.px(5), Stile.px(2), 0, 0));
-            wrap.add(shared);
-        }
-        return wrap;
+        name.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return name;
     }
 
     private Component content(final Etichetta label, final Elemento element) {
@@ -166,7 +148,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         if (field.comportamento() == Comportamento.PROGRESSIVO) {
             addSequenceControls(card, label, element, field);
         } else if (field.comportamento() == Comportamento.CHIESTO) {
-            card.nota("Questo valore verra' chiesto soltanto quando prepari la stampa.");
+            card.nota("Lo chiederemo solo quando prepari la stampa.");
         }
 
         JToggleButton behavior = choice(showContentOptions ? "Nascondi opzioni" : "Cambia comportamento…",
@@ -183,13 +165,14 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
 
         int users = label.elementiPerCampo(field).size();
         if (users > 1) {
-            JLabel shared = new JLabel("🔗  " + NomiDati.uso(label, field));
+            JLabel shared = new JLabel("🔗  " + NomiDati.tipoUso(label, field));
             shared.setFont(Stile.piccolo().deriveFont(java.awt.Font.BOLD));
             shared.setForeground(Stile.BLU);
+            shared.setToolTipText(NomiDati.uso(label, field));
             card.largo(shared);
 
-            Bottone detach = Bottone.normale("Separa questo elemento");
-            detach.setToolTipText("Crea un contenuto indipendente solo per questo elemento");
+            Bottone detach = Bottone.normale("Rendi indipendente");
+            detach.setToolTipText("Usa un contenuto separato solo per questo elemento");
             detach.addActionListener(e -> {
                 if (!silent) {
                     mark();
@@ -201,7 +184,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
             });
             card.largo(detach);
         } else if (label.campi().size() > 1) {
-            JToggleButton link = choice(showLinkPicker ? "Annulla collegamento" : "Collega a un altro elemento…",
+            JToggleButton link = choice(showLinkPicker ? "Annulla" : "Usa contenuto esistente…",
                     showLinkPicker);
             link.addActionListener(e -> {
                 showLinkPicker = link.isSelected();
@@ -209,7 +192,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
             });
             card.largo(link);
             if (showLinkPicker) {
-                card.campo("Usa il contenuto di", linkPicker(label, element, field));
+                card.campo("Contenuto", linkPicker(label, element, field));
             }
         }
         return card;
@@ -241,7 +224,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
                 changed();
             }
         });
-        card.riga("Ultime cifre che aumentano", digits);
+        card.riga("Cifre che aumentano", digits);
     }
 
     private Component behaviorChoices(final Etichetta label, final Elemento element,
@@ -308,7 +291,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
     private Component text(final Elemento element) {
         Scheda card = new Scheda("Testo");
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
-        card.riga("Allineamento", alignment(element));
+        card.riga("Allinea", alignment(element));
         card.riga("Righe", rows(element));
 
         final JCheckBox separators = new JCheckBox("Mostra punti e simboli", element.mostraSeparatori());
@@ -442,7 +425,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
     }
 
     private Component position(final Etichetta label, final Elemento element) {
-        Scheda card = new Scheda("Posizione");
+        Scheda card = new Scheda("Disponi");
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         Bottone rotate = Bottone.normale("↻  Ruota 90°");
@@ -632,31 +615,6 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
             super.getListCellRendererComponent(list, value, index, selected, focus);
             if (value instanceof Campo) setText(NomiDati.nome(label, (Campo) value));
             return this;
-        }
-    }
-
-    private static final class Badge extends JLabel {
-        private final Color background;
-        private final Color border;
-
-        Badge(String text, Color background, Color border) {
-            super(text.toUpperCase());
-            this.background = background;
-            this.border = border;
-            setFont(Stile.minuscolo().deriveFont(java.awt.Font.BOLD));
-            setForeground(border);
-            setBorder(BorderFactory.createEmptyBorder(3, 7, 3, 7));
-        }
-
-        @Override protected void paintComponent(Graphics g) {
-            Graphics2D g2 = Stile.liscio(g);
-            try {
-                Stile.riquadro(g2, 0, 0, getWidth(), getHeight(),
-                        Stile.px(7), background, border);
-            } finally {
-                g2.dispose();
-            }
-            super.paintComponent(g);
         }
     }
 
