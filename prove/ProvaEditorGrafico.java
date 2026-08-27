@@ -43,14 +43,14 @@ public final class ProvaEditorGrafico {
         UIManager.put("Label.font", new Font(Font.SANS_SERIF, Font.PLAIN, size));
         SwingUtilities.invokeAndWait(new Runnable() {
             @Override public void run() {
-                try { run(); } catch (Exception ex) { throw new RuntimeException(ex); }
+                try { eseguiAudit(); } catch (Exception ex) { throw new RuntimeException(ex); }
             }
         });
         System.out.println(ok + " editor graphics checks, " + ko + " failed at base " + size);
         if (ko != 0) System.exit(1);
     }
 
-    private static void run() throws Exception {
+    private static void eseguiAudit() throws Exception {
         Stile.adottaFontDiSistema();
         Etichetta eti = new Etichetta("Audit Windows", 50, 30);
         Campo c = new Campo("codice", Comportamento.FISSO,
