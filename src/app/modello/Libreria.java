@@ -18,7 +18,8 @@ public final class Libreria {
     public static Etichetta esempio() {
         Etichetta e = new Etichetta("Esempio", 50, 30);
         String codice = "210150.002_02-01.262350009";
-        e.aggiungi(new Campo("codice", Comportamento.FISSO, codice));
+        e.serie(new Serie(codice, 3));
+        e.aggiungi(new Campo("codice", Comportamento.PROGRESSIVO, codice));
         e.aggiungi(new Elemento("QR", Tipo.QR, "codice", 4.0, 2.5, 13.5));
         Elemento testo = new Elemento("Testo", Tipo.CODICE, "codice", 4.0, 18.0, 42.0)
                 .corpo(3.5, false);
