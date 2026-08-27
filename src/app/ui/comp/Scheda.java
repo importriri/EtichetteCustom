@@ -31,23 +31,29 @@ public class Scheda extends JPanel {
         add(dentro, java.awt.BorderLayout.CENTER);
     }
 
-    /** Compact row for short values. */
+    /**
+     * Compact semantic row. The caption sits above the control so Windows font
+     * scaling never has to squeeze segmented buttons into a narrow second
+     * column. Vertical space is cheap because the inspector scrolls; readable
+     * controls are not.
+     */
     public Scheda riga(String etichetta, Component comando) {
-        int y = riga++;
         GridBagConstraints a = new GridBagConstraints();
-        a.gridx = 0; a.gridy = y; a.anchor = GridBagConstraints.WEST;
-        a.insets = new Insets(0, 0, Stile.px(9), Stile.px(10));
+        a.gridx = 0; a.gridy = riga++; a.gridwidth = 2;
+        a.weightx = 1; a.fill = GridBagConstraints.HORIZONTAL;
+        a.anchor = GridBagConstraints.WEST;
+        a.insets = new Insets(0, 0, Stile.px(4), 0);
         JLabel l = new JLabel(etichetta);
         l.setFont(Stile.piccolo());
         l.setForeground(Stile.SUB0);
         dentro.add(l, a);
 
         GridBagConstraints b = new GridBagConstraints();
-        b.gridx = 1; b.gridy = y; b.weightx = 1;
-        b.fill = GridBagConstraints.HORIZONTAL;
-        b.anchor = GridBagConstraints.EAST;
+        b.gridx = 0; b.gridy = riga++; b.gridwidth = 2;
+        b.weightx = 1; b.fill = GridBagConstraints.HORIZONTAL;
+        b.anchor = GridBagConstraints.WEST;
         b.insets = new Insets(0, 0, Stile.px(9), 0);
-        minimo(comando, Stile.px(96));
+        minimo(comando, Stile.px(120));
         dentro.add(comando, b);
         return this;
     }
