@@ -20,6 +20,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GridLayout;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import javax.swing.BorderFactory;
@@ -35,38 +36,662 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 
-/** Inspector semplice: scelte quotidiane prima, misure precise solo su richiesta. */
+/** Contextual inspector that reveals secondary choices only when they are needed. */
 public class Proprieta extends JPanel implements javax.swing.Scrollable {
-    private final Runnable dopo,prima; private boolean silenzio,mostraPrecisione;
-    public Proprieta(Runnable prima,Runnable dopo){this.prima=prima;this.dopo=dopo;setBackground(Stile.BASE);setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));setBorder(BorderFactory.createEmptyBorder(Stile.px(18),Stile.px(16),Stile.px(18),Stile.px(16)));}
-    @Override public Dimension getPreferredScrollableViewportSize(){return getPreferredSize();}
-    @Override public int getScrollableUnitIncrement(java.awt.Rectangle r,int o,int d){return Stile.px(24);}
-    @Override public int getScrollableBlockIncrement(java.awt.Rectangle r,int o,int d){return Stile.px(220);}
-    @Override public boolean getScrollableTracksViewportWidth(){return true;}
-    @Override public boolean getScrollableTracksViewportHeight(){return false;}
-    public void mostra(final Etichetta eti,final Elemento e){removeAll();if(e==null){JLabel h=new JLabel("Seleziona un elemento");h.setFont(Stile.forte());h.setForeground(Stile.SUB0);h.setAlignmentX(Component.LEFT_ALIGNMENT);add(h);JLabel n=new JLabel("Poi trascinalo, ridimensionalo o ruotalo direttamente sull'etichetta.");n.setFont(Stile.piccolo());n.setForeground(Stile.OV1);n.setAlignmentX(Component.LEFT_ALIGNMENT);add(Scheda.spazio(6));add(n);revalidate();repaint();return;}silenzio=true;try{add(titolo(eti,e));add(Scheda.spazio(14));if(e.tipo()!=Tipo.LINEA){add(dati(eti,e));add(Scheda.spazio(12));}if(e.tipo().scritto()){add(testo(e));add(Scheda.spazio(12));}if(e.tipo()==Tipo.QR){add(lettura(eti,e));add(Scheda.spazio(12));}if(e.tipo()==Tipo.BARCODE){add(barre(eti,e));add(Scheda.spazio(12));}add(posizione(eti,e));add(javax.swing.Box.createVerticalGlue());}finally{silenzio=false;}revalidate();repaint();}
-    private Component titolo(Etichetta eti,Elemento e){JPanel wrap=new JPanel();wrap.setOpaque(false);wrap.setLayout(new BoxLayout(wrap,BoxLayout.Y_AXIS));wrap.setAlignmentX(Component.LEFT_ALIGNMENT);JPanel p=new JPanel(new FlowLayout(FlowLayout.LEFT,Stile.px(8),0));p.setOpaque(false);p.setAlignmentX(Component.LEFT_ALIGNMENT);JLabel n=new JLabel(e.nome());n.setFont(Stile.titolo());n.setForeground(Stile.TESTO);p.add(n);p.add(new Badge(e.tipo().etichetta(),Stile.BLU_SOFT,Stile.BLU));wrap.add(p);Campo c=eti.campo(e.campo());if(c!=null){JTextArea sub=testoSecondario(NomiDati.nome(eti,c)+"  ·  "+NomiDati.uso(eti,c));sub.setBorder(BorderFactory.createEmptyBorder(Stile.px(5),Stile.px(2),0,0));wrap.add(sub);}return wrap;}
-    private Component dati(final Etichetta eti,final Elemento e){Scheda s=new Scheda("Codice");s.setAlignmentX(Component.LEFT_ALIGNMENT);final Campo c=eti.campo(e.campo());if(c==null){s.nota("Questo elemento non ha ancora un codice.");return s;}final JTextField valore=new JTextField(valoreVisibile(c),18);preparaCampo(valore);valore.setToolTipText("Valore vero usato anche da QR e barcode");Runnable salvaValore=new Runnable(){@Override public void run(){if(!silenzio)applicaValore(eti,e,c,valore);}};valore.addActionListener(a->salvaValore.run());valore.addFocusListener(new FocusAdapter(){@Override public void focusLost(FocusEvent ev){salvaValore.run();}});s.campo(c.comportamento()==Comportamento.PROGRESSIVO?"Codice iniziale":"Contenuto",valore);
-        final JComboBox<Campo> collega=new JComboBox<Campo>();for(Campo x:eti.campi())collega.addItem(x);collega.setSelectedItem(c);collega.setFont(Stile.normale());collega.setRenderer(new CampoRenderer(eti));collega.setPreferredSize(new Dimension(Stile.px(210),Stile.px(36)));collega.setToolTipText("Scegli un codice gia' usato da un altro elemento");collega.addActionListener(a->{if(!silenzio&&collega.getSelectedItem()!=null){segna();Campo x=(Campo)collega.getSelectedItem();e.campo(x.nome());mostra(eti,e);cambiato();}});s.campo("Usa lo stesso codice di",collega);
-        final JComboBox<Comportamento> come=new JComboBox<Comportamento>(Comportamento.values());come.setSelectedItem(c.comportamento());come.setFont(Stile.normale());come.setPreferredSize(new Dimension(Stile.px(210),Stile.px(36)));come.addActionListener(a->{if(!silenzio){segna();Comportamento nuovo=(Comportamento)come.getSelectedItem();if(nuovo==Comportamento.PROGRESSIVO){try{Serie old=c.serie();int cif=old==null?3:old.cifre();c.serie(new Serie(valore.getText().trim(),cif));}catch(RuntimeException ex){c.comportamento(nuovo);}}else c.comportamento(nuovo);mostra(eti,e);cambiato();}});s.campo("Quando stampi",come);
-        if(c.comportamento()==Comportamento.PROGRESSIVO){Serie serie=c.serie();if(serie!=null){CodiceView cv=new CodiceView(serie.prefisso(),serie.finestra(serie.prossimo()));cv.corpo(12);s.largo(cv);Integer[] valori=new Integer[9];for(int i=0;i<valori.length;i++)valori[i]=Integer.valueOf(i+1);final JComboBox<Integer> cifre=new JComboBox<Integer>(valori);cifre.setSelectedItem(Integer.valueOf(serie.cifre()));cifre.setFont(Stile.normale());cifre.setPreferredSize(new Dimension(Stile.px(82),Stile.px(34)));cifre.addActionListener(a->{if(!silenzio&&cifre.getSelectedItem()!=null){int v=((Integer)cifre.getSelectedItem()).intValue();segna();eti.cambiaFinestra(c.nome(),v);mostra(eti,e);cambiato();}});s.riga("Cifre che cambiano",cifre);s.nota("Solo la parte evidenziata aumenta. Il resto rimane uguale.");}else s.nota("Per il progressivo il codice deve terminare con almeno una cifra.");}else if(c.comportamento()==Comportamento.CHIESTO)s.nota("Il valore viene chiesto una volta prima del giro di stampa.");
-        if(eti.elementiPerCampo(c).size()>1){Bottone indip=Bottone.normale("Usa un codice diverso");indip.setToolTipText("Scollega solo questo elemento dagli altri");indip.addActionListener(a->{if(!silenzio){segna();eti.rendiIndipendente(e);mostra(eti,e);cambiato();}});s.largo(indip);s.nota("Questo codice e' condiviso da "+NomiDati.uso(eti,c)+". Il QR conserva sempre il valore completo.");}return s;}
-    private Component testo(final Elemento e){Scheda s=new Scheda("Testo");s.setAlignmentX(Component.LEFT_ALIGNMENT);s.riga("Allineamento",allineamento(e));s.riga("Righe",righe(e));final JCheckBox sep=new JCheckBox("Mostra punti e simboli",e.mostraSeparatori());sep.setOpaque(false);sep.setFont(Stile.piccolo());sep.setForeground(Stile.SUB1);sep.setFocusPainted(false);sep.addActionListener(a->{if(!silenzio){segna();e.mostraSeparatori(sep.isSelected());cambiato();}});s.largo(sep);s.nota("Se li nascondi, cambiano solo le scritte. QR e barcode conservano il codice esatto.");return s;}
-    private Component allineamento(final Elemento e){JPanel p=gruppoCompatto();ButtonGroup g=new ButtonGroup();String[] nomi={"Sinistra","Centro","Destra"};for(int i=0;i<nomi.length;i++){final int v=i;JToggleButton b=scelta(nomi[i],e.allineamento()==i);b.addActionListener(a->{if(!silenzio){segna();e.allineamento(v);cambiato();}});g.add(b);p.add(b);}return p;}
-    private Component righe(final Elemento e){JPanel p=gruppoCompatto();ButtonGroup g=new ButtonGroup();String[] nomi={"Auto","1","2","3"};int corrente=e.righePreferite();for(int i=0;i<nomi.length;i++){final int v=i;JToggleButton b=scelta(nomi[i],corrente==i);b.addActionListener(a->{if(!silenzio){segna();e.righePreferite(v);e.massimoRighe(3);cambiato();}});g.add(b);p.add(b);}return p;}
-    private Component lettura(final Etichetta eti,final Elemento e){Scheda s=new Scheda("QR");s.setAlignmentX(Component.LEFT_ALIGNMENT);JComboBox<Correzione> livello=new JComboBox<Correzione>(Correzione.values());livello.setSelectedItem(e.correzione());livello.setFont(Stile.normale());livello.setPreferredSize(new Dimension(Stile.px(120),Stile.px(34)));livello.addActionListener(a->{if(!silenzio){segna();e.correzione((Correzione)livello.getSelectedItem());mostra(eti,e);cambiato();}});s.riga("Robustezza",livello);String contenuto=eti.contenuto(e,0);int lato;try{lato=Qr.codifica(contenuto,e.correzione()).length;}catch(RuntimeException ex){s.largo(new Stato("QR non valido",Stile.ROSSO,Stile.PESCA_SOFT));s.nota(ex.getMessage());return s;}double modulo=e.larghezza()/lato,q=4*modulo;boolean quiet=e.x()>=q&&e.y()>=q&&eti.larghezza()-e.x()-e.larghezza()>=q&&eti.altezza()-e.y()-e.larghezza()>=q;if(modulo>=.25&&quiet)s.largo(new Stato("Pronto da leggere",Stile.VERDE,Stile.VERDE_SOFT));else if(modulo<.25){s.largo(new Stato("Ingrandisci il QR",Stile.PESCA,Stile.PESCA_SOFT));s.nota("Trascina una maniglia blu verso l'esterno.");}else{s.largo(new Stato("Serve piu' spazio bianco",Stile.PESCA,Stile.PESCA_SOFT));s.nota("Allontana il QR dai bordi o dagli altri elementi.");}if(mostraPrecisione){s.riga("Matrice",etichettina(lato+" x "+lato));s.riga("Modulo",etichettina(mm(modulo)));}return s;}
-    private Component barre(final Etichetta eti,final Elemento e){Scheda s=new Scheda("Barcode");s.setAlignmentX(Component.LEFT_ALIGNMENT);String contenuto=eti.contenuto(e,0);try{int mod=Code128.moduli(contenuto);double m=e.larghezza()/mod;s.largo(new Stato(m>=.25?"Pronto da leggere":"Allarga il barcode",m>=.25?Stile.VERDE:Stile.PESCA,m>=.25?Stile.VERDE_SOFT:Stile.PESCA_SOFT));if(mostraPrecisione){s.riga("Formato",etichettina("Code 128"));s.riga("Barra minima",etichettina(mm(m)));}}catch(RuntimeException ex){s.largo(new Stato("Contenuto non valido",Stile.ROSSO,Stile.PESCA_SOFT));s.nota(ex.getMessage());}return s;}
-    private Component posizione(final Etichetta eti,final Elemento e){Scheda s=new Scheda("Sistema");s.setAlignmentX(Component.LEFT_ALIGNMENT);s.nota("Trascina per spostare. Trascina una maniglia blu per ridimensionare.");JPanel rot=gruppoCompatto();ButtonGroup gruppo=new ButtonGroup();int[] gradi={0,90,180,270};for(final int gr:gradi){JToggleButton b=scelta(gr+"°",e.rotazione()==gr);b.addActionListener(a->{if(!silenzio){segna();e.rotazione(gr);cambiato();}});gruppo.add(b);rot.add(b);}s.riga("Ruota",rot);JToggleButton precisione=scelta(mostraPrecisione?"Nascondi misure":"Misure precise",mostraPrecisione);precisione.addActionListener(a->{mostraPrecisione=precisione.isSelected();mostra(eti,e);});s.largo(precisione);if(mostraPrecisione){s.riga("X",misura(e.x(),0,eti.larghezza(),v->e.x(v)));s.riga("Y",misura(e.y(),0,eti.altezza(),v->e.y(v)));s.riga("Larghezza",misura(e.larghezza(),1,Math.max(eti.larghezza(),eti.altezza()),v->e.larghezza(v)));if(e.tipo()==Tipo.BARCODE||e.tipo()==Tipo.LINEA)s.riga("Altezza",misura(e.altezza(),.4,Math.max(eti.larghezza(),eti.altezza()),v->e.altezza(v)));if(e.tipo().scritto())s.riga("Testo",misura(e.corpo(),1,40,v->e.corpo(v)));}return s;}
-    private interface Posa{void applica(double v);} private Component misura(final double val,final double min,final double max,final Posa p){JPanel r=new JPanel(new java.awt.BorderLayout(Stile.px(6),0));r.setOpaque(false);final JTextField f=new JTextField(numero(val),5);preparaCampo(f);f.setHorizontalAlignment(JTextField.RIGHT);JLabel unit=new JLabel("mm");unit.setFont(Stile.piccolo());unit.setForeground(Stile.SUB0);r.add(f,java.awt.BorderLayout.CENTER);r.add(unit,java.awt.BorderLayout.EAST);Runnable salva=new Runnable(){@Override public void run(){if(silenzio)return;try{double v=Double.parseDouble(f.getText().trim().replace(',','.'));v=Math.max(min,Math.min(max,v));segna();p.applica(v);f.setText(numero(v));cambiato();}catch(NumberFormatException ex){java.awt.Toolkit.getDefaultToolkit().beep();f.setText(numero(val));}}};f.addActionListener(a->salva.run());f.addFocusListener(new FocusAdapter(){@Override public void focusLost(FocusEvent e){salva.run();}});return r;}
-    private static JPanel gruppoCompatto(){JPanel p=new JPanel(new java.awt.GridLayout(1,0,Stile.px(4),0));p.setOpaque(false);return p;}
-    private static JToggleButton scelta(String t,boolean selected){JToggleButton b=new JToggleButton(t);b.setFont(Stile.minuscolo());b.setSelected(selected);b.setFocusPainted(false);b.setMargin(new java.awt.Insets(Stile.px(5),Stile.px(7),Stile.px(5),Stile.px(7)));return b;}
-    private static void preparaCampo(JTextField f){f.setFont(Stile.normale());f.setPreferredSize(new Dimension(f.getPreferredSize().width,Stile.px(34)));}
-    private static JTextArea testoSecondario(String t){JTextArea a=new JTextArea(t);a.setEditable(false);a.setFocusable(false);a.setOpaque(false);a.setLineWrap(true);a.setWrapStyleWord(true);a.setFont(Stile.piccolo());a.setForeground(Stile.SUB0);a.setAlignmentX(Component.LEFT_ALIGNMENT);a.setColumns(24);a.setRows(2);Dimension d=a.getPreferredSize();a.setPreferredSize(new Dimension(Stile.px(245),d.height));a.setMaximumSize(new Dimension(Integer.MAX_VALUE,d.height));return a;}
-    private static String valoreVisibile(Campo c){return c.serie()!=null?c.serie().codice(c.serie().prossimo()):c.valore();}
-    private void applicaValore(Etichetta eti,Elemento e,Campo c,JTextField f){String v=f.getText().trim();try{segna();if(c.comportamento()==Comportamento.PROGRESSIVO){int n=c.serie()==null?3:c.serie().cifre();c.serie(new Serie(v,n));}else c.valore(v);cambiato();}catch(RuntimeException ex){f.setToolTipText(ex.getMessage());java.awt.Toolkit.getDefaultToolkit().beep();}}
-    private static JLabel etichettina(String s){JLabel l=new JLabel(s);l.setFont(Stile.normale());l.setForeground(Stile.TESTO);return l;}private static String numero(double v){return String.valueOf(Math.round(v*10.0)/10.0).replace('.',',');}private static String mm(double v){return String.valueOf(Math.round(v*100)/100.0).replace('.',',')+" mm";}
-    private void segna(){if(!silenzio&&prima!=null)prima.run();}private void cambiato(){if(dopo!=null)dopo.run();}
-    private static final class CampoRenderer extends DefaultListCellRenderer{private final Etichetta eti;CampoRenderer(Etichetta e){eti=e;}@Override public Component getListCellRendererComponent(JList<?> list,Object value,int index,boolean sel,boolean focus){super.getListCellRendererComponent(list,value,index,sel,focus);if(value instanceof Campo)setText(NomiDati.nome(eti,(Campo)value));return this;}}
-    private static final class Badge extends JLabel{private final Color bg,border;Badge(String t,Color bg,Color border){super(t.toUpperCase());this.bg=bg;this.border=border;setFont(Stile.minuscolo().deriveFont(java.awt.Font.BOLD));setForeground(border);setBorder(BorderFactory.createEmptyBorder(3,7,3,7));}@Override protected void paintComponent(Graphics g){Graphics2D g2=Stile.liscio(g);try{Stile.riquadro(g2,0,0,getWidth(),getHeight(),Stile.px(7),bg,border);}finally{g2.dispose();}super.paintComponent(g);}}
-    private static final class Stato extends JLabel{private final Color c,bg;Stato(String t,Color c,Color bg){super("●  "+t);this.c=c;this.bg=bg;setFont(Stile.piccolo().deriveFont(java.awt.Font.BOLD));setForeground(c);setBorder(BorderFactory.createEmptyBorder(7,9,7,9));}@Override protected void paintComponent(Graphics g){Graphics2D g2=Stile.liscio(g);try{Stile.riquadro(g2,0,0,getWidth(),getHeight(),Stile.px(8),bg,null);}finally{g2.dispose();}super.paintComponent(g);}}
+    private final Runnable after;
+    private final Runnable before;
+    private boolean silent;
+    private boolean showPrecision;
+    private boolean showContentOptions;
+    private boolean showLinkPicker;
+    private boolean showQrOptions;
+
+    public Proprieta(Runnable before, Runnable after) {
+        this.before = before;
+        this.after = after;
+        setBackground(Stile.BASE);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(BorderFactory.createEmptyBorder(
+                Stile.px(18), Stile.px(16), Stile.px(18), Stile.px(16)));
+    }
+
+    @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+    @Override public int getScrollableUnitIncrement(java.awt.Rectangle r, int o, int d) { return Stile.px(24); }
+    @Override public int getScrollableBlockIncrement(java.awt.Rectangle r, int o, int d) { return Stile.px(220); }
+    @Override public boolean getScrollableTracksViewportWidth() { return true; }
+    @Override public boolean getScrollableTracksViewportHeight() { return false; }
+
+    public void mostra(final Etichetta label, final Elemento element) {
+        removeAll();
+        if (element == null) {
+            showEmptyState();
+            return;
+        }
+
+        silent = true;
+        try {
+            add(title(label, element));
+            add(Scheda.spazio(14));
+            if (element.tipo() != Tipo.LINEA) {
+                add(content(label, element));
+                add(Scheda.spazio(12));
+            }
+            if (element.tipo().scritto()) {
+                add(text(element));
+                add(Scheda.spazio(12));
+            }
+            if (element.tipo() == Tipo.QR) {
+                add(qr(label, element));
+                add(Scheda.spazio(12));
+            }
+            if (element.tipo() == Tipo.BARCODE) {
+                add(barcode(label, element));
+                add(Scheda.spazio(12));
+            }
+            add(position(label, element));
+            add(javax.swing.Box.createVerticalGlue());
+        } finally {
+            silent = false;
+        }
+        revalidate();
+        repaint();
+    }
+
+    private void showEmptyState() {
+        JLabel heading = new JLabel("Seleziona un elemento");
+        heading.setFont(Stile.forte());
+        heading.setForeground(Stile.SUB0);
+        heading.setAlignmentX(Component.LEFT_ALIGNMENT);
+        add(heading);
+
+        JTextArea hint = secondaryText("Trascinalo per spostarlo. Usa le maniglie blu per ridimensionarlo.");
+        hint.setBorder(BorderFactory.createEmptyBorder(Stile.px(6), 0, 0, 0));
+        add(hint);
+        revalidate();
+        repaint();
+    }
+
+    private Component title(Etichetta label, Elemento element) {
+        JPanel wrap = new JPanel();
+        wrap.setOpaque(false);
+        wrap.setLayout(new BoxLayout(wrap, BoxLayout.Y_AXIS));
+        wrap.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(8), 0));
+        row.setOpaque(false);
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel name = new JLabel(element.nome());
+        name.setFont(Stile.titolo());
+        name.setForeground(Stile.TESTO);
+        row.add(name);
+        row.add(new Badge(element.tipo().etichetta(), Stile.BLU_SOFT, Stile.BLU));
+        wrap.add(row);
+
+        Campo field = label.campo(element.campo());
+        if (field != null && label.elementiPerCampo(field).size() > 1) {
+            JTextArea shared = secondaryText("Collegato a " + NomiDati.uso(label, field));
+            shared.setBorder(BorderFactory.createEmptyBorder(Stile.px(5), Stile.px(2), 0, 0));
+            wrap.add(shared);
+        }
+        return wrap;
+    }
+
+    private Component content(final Etichetta label, final Elemento element) {
+        Scheda card = new Scheda("Contenuto");
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        final Campo field = label.campo(element.campo());
+        if (field == null) {
+            card.nota("Questo elemento non ha ancora un contenuto.");
+            return card;
+        }
+
+        final JTextField value = new JTextField(visibleValue(field), 18);
+        prepareField(value);
+        value.setToolTipText("Valore completo usato da questo elemento");
+        Runnable saveValue = new Runnable() {
+            @Override public void run() {
+                if (!silent) applyValue(label, field, value);
+            }
+        };
+        value.addActionListener(e -> saveValue.run());
+        value.addFocusListener(new FocusAdapter() {
+            @Override public void focusLost(FocusEvent event) { saveValue.run(); }
+        });
+        card.campo(field.comportamento() == Comportamento.PROGRESSIVO
+                ? "Codice iniziale" : "Valore", value);
+
+        card.largo(new Stato(behaviorLabel(field.comportamento()),
+                behaviorColor(field.comportamento()), behaviorBackground(field.comportamento())));
+
+        if (field.comportamento() == Comportamento.PROGRESSIVO) {
+            addSequenceControls(card, label, element, field);
+        } else if (field.comportamento() == Comportamento.CHIESTO) {
+            card.nota("Questo valore verra' chiesto soltanto quando prepari la stampa.");
+        }
+
+        JToggleButton behavior = choice(showContentOptions ? "Nascondi opzioni" : "Cambia comportamento…",
+                showContentOptions);
+        behavior.addActionListener(e -> {
+            showContentOptions = behavior.isSelected();
+            mostra(label, element);
+        });
+        card.largo(behavior);
+
+        if (showContentOptions) {
+            card.riga("Durante la stampa", behaviorChoices(label, element, field, value));
+        }
+
+        int users = label.elementiPerCampo(field).size();
+        if (users > 1) {
+            JLabel shared = new JLabel("🔗  " + NomiDati.uso(label, field));
+            shared.setFont(Stile.piccolo().deriveFont(java.awt.Font.BOLD));
+            shared.setForeground(Stile.BLU);
+            card.largo(shared);
+
+            Bottone detach = Bottone.normale("Separa questo elemento");
+            detach.setToolTipText("Crea un contenuto indipendente solo per questo elemento");
+            detach.addActionListener(e -> {
+                if (!silent) {
+                    mark();
+                    label.rendiIndipendente(element);
+                    showLinkPicker = false;
+                    mostra(label, element);
+                    changed();
+                }
+            });
+            card.largo(detach);
+        } else if (label.campi().size() > 1) {
+            JToggleButton link = choice(showLinkPicker ? "Annulla collegamento" : "Collega a un altro elemento…",
+                    showLinkPicker);
+            link.addActionListener(e -> {
+                showLinkPicker = link.isSelected();
+                mostra(label, element);
+            });
+            card.largo(link);
+            if (showLinkPicker) {
+                card.campo("Usa il contenuto di", linkPicker(label, element, field));
+            }
+        }
+        return card;
+    }
+
+    private void addSequenceControls(Scheda card, final Etichetta label,
+                                     final Elemento element, final Campo field) {
+        Serie series = field.serie();
+        if (series == null) {
+            card.nota("Il codice deve terminare con almeno una cifra per poter aumentare.");
+            return;
+        }
+
+        CodiceView preview = new CodiceView(series.prefisso(), series.finestra(series.prossimo()));
+        preview.corpo(12);
+        card.largo(preview);
+
+        Integer[] options = new Integer[9];
+        for (int i = 0; i < options.length; i++) options[i] = Integer.valueOf(i + 1);
+        final JComboBox<Integer> digits = new JComboBox<Integer>(options);
+        digits.setSelectedItem(Integer.valueOf(series.cifre()));
+        digits.setFont(Stile.normale());
+        digits.setPreferredSize(new Dimension(Stile.px(82), Stile.px(34)));
+        digits.addActionListener(e -> {
+            if (!silent && digits.getSelectedItem() != null) {
+                mark();
+                label.cambiaFinestra(field.nome(), ((Integer) digits.getSelectedItem()).intValue());
+                mostra(label, element);
+                changed();
+            }
+        });
+        card.riga("Ultime cifre che aumentano", digits);
+    }
+
+    private Component behaviorChoices(final Etichetta label, final Elemento element,
+                                      final Campo field, final JTextField value) {
+        JPanel panel = compactGroup();
+        ButtonGroup group = new ButtonGroup();
+        Comportamento[] values = {
+            Comportamento.FISSO,
+            Comportamento.PROGRESSIVO,
+            Comportamento.CHIESTO
+        };
+        String[] labels = {"Non cambia", "Aumenta", "Chiedi"};
+
+        for (int i = 0; i < values.length; i++) {
+            final Comportamento target = values[i];
+            JToggleButton button = choice(labels[i], field.comportamento() == target);
+            button.addActionListener(e -> {
+                if (!silent) {
+                    mark();
+                    if (target == Comportamento.PROGRESSIVO) {
+                        try {
+                            int digits = field.serie() == null ? 3 : field.serie().cifre();
+                            field.serie(new Serie(value.getText().trim(), digits));
+                        } catch (RuntimeException ex) {
+                            java.awt.Toolkit.getDefaultToolkit().beep();
+                            value.setToolTipText(ex.getMessage());
+                            return;
+                        }
+                    } else {
+                        field.comportamento(target);
+                    }
+                    showContentOptions = false;
+                    mostra(label, element);
+                    changed();
+                }
+            });
+            group.add(button);
+            panel.add(button);
+        }
+        return panel;
+    }
+
+    private Component linkPicker(final Etichetta label, final Elemento element, Campo current) {
+        final JComboBox<Campo> combo = new JComboBox<Campo>();
+        for (Campo candidate : label.campi()) {
+            if (candidate != current) combo.addItem(candidate);
+        }
+        combo.setFont(Stile.normale());
+        combo.setRenderer(new CampoRenderer(label));
+        combo.setPreferredSize(new Dimension(Stile.px(210), Stile.px(36)));
+        combo.setToolTipText("Scegli un contenuto gia' usato nell'etichetta");
+        combo.addActionListener(e -> {
+            if (!silent && combo.getSelectedItem() != null) {
+                mark();
+                element.campo(((Campo) combo.getSelectedItem()).nome());
+                showLinkPicker = false;
+                mostra(label, element);
+                changed();
+            }
+        });
+        return combo;
+    }
+
+    private Component text(final Elemento element) {
+        Scheda card = new Scheda("Testo");
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.riga("Allineamento", alignment(element));
+        card.riga("Righe", rows(element));
+
+        final JCheckBox separators = new JCheckBox("Mostra punti e simboli", element.mostraSeparatori());
+        separators.setOpaque(false);
+        separators.setFont(Stile.piccolo());
+        separators.setForeground(Stile.SUB1);
+        separators.setFocusPainted(false);
+        separators.addActionListener(e -> {
+            if (!silent) {
+                mark();
+                element.mostraSeparatori(separators.isSelected());
+                changed();
+            }
+        });
+        card.largo(separators);
+        return card;
+    }
+
+    private Component alignment(final Elemento element) {
+        JPanel panel = compactGroup();
+        ButtonGroup group = new ButtonGroup();
+        String[] labels = {"Sinistra", "Centro", "Destra"};
+        for (int i = 0; i < labels.length; i++) {
+            final int value = i;
+            JToggleButton button = choice(labels[i], element.allineamento() == i);
+            button.addActionListener(e -> {
+                if (!silent) {
+                    mark();
+                    element.allineamento(value);
+                    changed();
+                }
+            });
+            group.add(button);
+            panel.add(button);
+        }
+        return panel;
+    }
+
+    private Component rows(final Elemento element) {
+        JPanel panel = compactGroup();
+        ButtonGroup group = new ButtonGroup();
+        String[] labels = {"Auto", "1", "2", "3"};
+        int current = element.righePreferite();
+        for (int i = 0; i < labels.length; i++) {
+            final int value = i;
+            JToggleButton button = choice(labels[i], current == i);
+            button.addActionListener(e -> {
+                if (!silent) {
+                    mark();
+                    element.righePreferite(value);
+                    element.massimoRighe(3);
+                    changed();
+                }
+            });
+            group.add(button);
+            panel.add(button);
+        }
+        return panel;
+    }
+
+    private Component qr(final Etichetta label, final Elemento element) {
+        Scheda card = new Scheda("QR");
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        String value = label.contenuto(element, 0);
+        int side;
+        try {
+            side = Qr.codifica(value, element.correzione()).length;
+        } catch (RuntimeException ex) {
+            card.largo(new Stato("QR non valido", Stile.ROSSO, Stile.PESCA_SOFT));
+            card.nota(ex.getMessage());
+            return card;
+        }
+
+        double module = element.larghezza() / side;
+        double quiet = 4 * module;
+        boolean hasQuietZone = element.x() >= quiet && element.y() >= quiet
+                && label.larghezza() - element.x() - element.larghezza() >= quiet
+                && label.altezza() - element.y() - element.larghezza() >= quiet;
+
+        if (module >= .25 && hasQuietZone) {
+            card.largo(new Stato("Pronto da leggere", Stile.VERDE, Stile.VERDE_SOFT));
+        } else if (module < .25) {
+            card.largo(new Stato("Ingrandisci il QR", Stile.PESCA, Stile.PESCA_SOFT));
+            card.nota("Allarga il QR trascinando una maniglia blu.");
+        } else {
+            card.largo(new Stato("Serve piu' spazio bianco", Stile.PESCA, Stile.PESCA_SOFT));
+            card.nota("Spostalo un po' piu' lontano dai bordi.");
+        }
+
+        JToggleButton options = choice(showQrOptions ? "Nascondi opzioni QR" : "Opzioni QR…", showQrOptions);
+        options.addActionListener(e -> {
+            showQrOptions = options.isSelected();
+            mostra(label, element);
+        });
+        card.largo(options);
+
+        if (showQrOptions) {
+            final JComboBox<Correzione> correction = new JComboBox<Correzione>(Correzione.values());
+            correction.setSelectedItem(element.correzione());
+            correction.setFont(Stile.normale());
+            correction.setPreferredSize(new Dimension(Stile.px(120), Stile.px(34)));
+            correction.addActionListener(e -> {
+                if (!silent) {
+                    mark();
+                    element.correzione((Correzione) correction.getSelectedItem());
+                    mostra(label, element);
+                    changed();
+                }
+            });
+            card.riga("Robustezza", correction);
+            if (showPrecision) {
+                card.riga("Matrice", smallLabel(side + " x " + side));
+                card.riga("Modulo", smallLabel(mm(module)));
+            }
+        }
+        return card;
+    }
+
+    private Component barcode(final Etichetta label, final Elemento element) {
+        Scheda card = new Scheda("Barcode");
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        String value = label.contenuto(element, 0);
+        try {
+            int modules = Code128.moduli(value);
+            double module = element.larghezza() / modules;
+            card.largo(new Stato(module >= .25 ? "Pronto da leggere" : "Allarga il barcode",
+                    module >= .25 ? Stile.VERDE : Stile.PESCA,
+                    module >= .25 ? Stile.VERDE_SOFT : Stile.PESCA_SOFT));
+            if (showPrecision) {
+                card.riga("Formato", smallLabel("Code 128"));
+                card.riga("Barra minima", smallLabel(mm(module)));
+            }
+        } catch (RuntimeException ex) {
+            card.largo(new Stato("Contenuto non valido", Stile.ROSSO, Stile.PESCA_SOFT));
+            card.nota(ex.getMessage());
+        }
+        return card;
+    }
+
+    private Component position(final Etichetta label, final Elemento element) {
+        Scheda card = new Scheda("Posizione");
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel rotation = compactGroup();
+        ButtonGroup group = new ButtonGroup();
+        int[] degrees = {0, 90, 180, 270};
+        for (final int degree : degrees) {
+            JToggleButton button = choice(degree + "°", element.rotazione() == degree);
+            button.addActionListener(e -> {
+                if (!silent) {
+                    mark();
+                    element.rotazione(degree);
+                    changed();
+                }
+            });
+            group.add(button);
+            rotation.add(button);
+        }
+        card.riga("Ruota", rotation);
+
+        JToggleButton precision = choice(showPrecision ? "Nascondi misure" : "Misure precise…",
+                showPrecision);
+        precision.addActionListener(e -> {
+            showPrecision = precision.isSelected();
+            mostra(label, element);
+        });
+        card.largo(precision);
+
+        if (showPrecision) {
+            card.riga("X", measure(element.x(), 0, label.larghezza(), v -> element.x(v)));
+            card.riga("Y", measure(element.y(), 0, label.altezza(), v -> element.y(v)));
+            card.riga("Larghezza", measure(element.larghezza(), 1,
+                    Math.max(label.larghezza(), label.altezza()), v -> element.larghezza(v)));
+            if (element.tipo() == Tipo.BARCODE || element.tipo() == Tipo.LINEA) {
+                card.riga("Altezza", measure(element.altezza(), .4,
+                        Math.max(label.larghezza(), label.altezza()), v -> element.altezza(v)));
+            }
+            if (element.tipo().scritto()) {
+                card.riga("Testo", measure(element.corpo(), 1, 40, v -> element.corpo(v)));
+            }
+        }
+        return card;
+    }
+
+    private interface Setter { void set(double value); }
+
+    private Component measure(final double value, final double min,
+                              final double max, final Setter setter) {
+        JPanel row = new JPanel(new java.awt.BorderLayout(Stile.px(6), 0));
+        row.setOpaque(false);
+        final JTextField field = new JTextField(number(value), 5);
+        prepareField(field);
+        field.setHorizontalAlignment(JTextField.RIGHT);
+        JLabel unit = new JLabel("mm");
+        unit.setFont(Stile.piccolo());
+        unit.setForeground(Stile.SUB0);
+        row.add(field, java.awt.BorderLayout.CENTER);
+        row.add(unit, java.awt.BorderLayout.EAST);
+
+        Runnable save = new Runnable() {
+            @Override public void run() {
+                if (silent) return;
+                try {
+                    double parsed = Double.parseDouble(field.getText().trim().replace(',', '.'));
+                    parsed = Math.max(min, Math.min(max, parsed));
+                    mark();
+                    setter.set(parsed);
+                    field.setText(number(parsed));
+                    changed();
+                } catch (NumberFormatException ex) {
+                    java.awt.Toolkit.getDefaultToolkit().beep();
+                    field.setText(number(value));
+                }
+            }
+        };
+        field.addActionListener(e -> save.run());
+        field.addFocusListener(new FocusAdapter() {
+            @Override public void focusLost(FocusEvent event) { save.run(); }
+        });
+        return row;
+    }
+
+    private static JPanel compactGroup() {
+        JPanel panel = new JPanel(new GridLayout(1, 0, Stile.px(4), 0));
+        panel.setOpaque(false);
+        return panel;
+    }
+
+    private static JToggleButton choice(String text, boolean selected) {
+        JToggleButton button = new JToggleButton(text);
+        button.setFont(Stile.minuscolo());
+        button.setSelected(selected);
+        button.setFocusPainted(false);
+        button.setMargin(new java.awt.Insets(
+                Stile.px(6), Stile.px(7), Stile.px(6), Stile.px(7)));
+        return button;
+    }
+
+    private static void prepareField(JTextField field) {
+        field.setFont(Stile.normale());
+        field.setPreferredSize(new Dimension(field.getPreferredSize().width, Stile.px(36)));
+    }
+
+    private static JTextArea secondaryText(String text) {
+        JTextArea area = new JTextArea(text);
+        area.setEditable(false);
+        area.setFocusable(false);
+        area.setOpaque(false);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setFont(Stile.piccolo());
+        area.setForeground(Stile.SUB0);
+        area.setAlignmentX(Component.LEFT_ALIGNMENT);
+        area.setColumns(24);
+        area.setRows(2);
+        Dimension preferred = area.getPreferredSize();
+        area.setPreferredSize(new Dimension(Stile.px(245), preferred.height));
+        area.setMaximumSize(new Dimension(Integer.MAX_VALUE, preferred.height));
+        return area;
+    }
+
+    private static String visibleValue(Campo field) {
+        return field.serie() != null
+                ? field.serie().codice(field.serie().prossimo())
+                : field.valore();
+    }
+
+    private void applyValue(Etichetta label, Campo field, JTextField input) {
+        String value = input.getText().trim();
+        try {
+            mark();
+            if (field.comportamento() == Comportamento.PROGRESSIVO) {
+                int digits = field.serie() == null ? 3 : field.serie().cifre();
+                field.serie(new Serie(value, digits));
+            } else {
+                field.valore(value);
+            }
+            changed();
+        } catch (RuntimeException ex) {
+            input.setToolTipText(ex.getMessage());
+            java.awt.Toolkit.getDefaultToolkit().beep();
+        }
+    }
+
+    private static String behaviorLabel(Comportamento behavior) {
+        if (behavior == Comportamento.PROGRESSIVO) return "Aumenta automaticamente";
+        if (behavior == Comportamento.CHIESTO) return "Chiesto alla stampa";
+        return "Non cambia";
+    }
+
+    private static Color behaviorColor(Comportamento behavior) {
+        if (behavior == Comportamento.PROGRESSIVO) return Stile.PESCA;
+        if (behavior == Comportamento.CHIESTO) return Stile.BLU;
+        return Stile.SUB1;
+    }
+
+    private static Color behaviorBackground(Comportamento behavior) {
+        if (behavior == Comportamento.PROGRESSIVO) return Stile.PESCA_SOFT;
+        if (behavior == Comportamento.CHIESTO) return Stile.BLU_SOFT;
+        return Stile.MANTLE;
+    }
+
+    private static JLabel smallLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(Stile.normale());
+        label.setForeground(Stile.TESTO);
+        return label;
+    }
+
+    private static String number(double value) {
+        return String.valueOf(Math.round(value * 10.0) / 10.0).replace('.', ',');
+    }
+
+    private static String mm(double value) {
+        return String.valueOf(Math.round(value * 100) / 100.0).replace('.', ',') + " mm";
+    }
+
+    private void mark() {
+        if (!silent && before != null) before.run();
+    }
+
+    private void changed() {
+        if (after != null) after.run();
+    }
+
+    private static final class CampoRenderer extends DefaultListCellRenderer {
+        private final Etichetta label;
+
+        CampoRenderer(Etichetta label) { this.label = label; }
+
+        @Override public Component getListCellRendererComponent(
+                JList<?> list, Object value, int index, boolean selected, boolean focus) {
+            super.getListCellRendererComponent(list, value, index, selected, focus);
+            if (value instanceof Campo) setText(NomiDati.nome(label, (Campo) value));
+            return this;
+        }
+    }
+
+    private static final class Badge extends JLabel {
+        private final Color background;
+        private final Color border;
+
+        Badge(String text, Color background, Color border) {
+            super(text.toUpperCase());
+            this.background = background;
+            this.border = border;
+            setFont(Stile.minuscolo().deriveFont(java.awt.Font.BOLD));
+            setForeground(border);
+            setBorder(BorderFactory.createEmptyBorder(3, 7, 3, 7));
+        }
+
+        @Override protected void paintComponent(Graphics g) {
+            Graphics2D g2 = Stile.liscio(g);
+            try {
+                Stile.riquadro(g2, 0, 0, getWidth(), getHeight(),
+                        Stile.px(7), background, border);
+            } finally {
+                g2.dispose();
+            }
+            super.paintComponent(g);
+        }
+    }
+
+    private static final class Stato extends JLabel {
+        private final Color background;
+
+        Stato(String text, Color foreground, Color background) {
+            super("●  " + text);
+            this.background = background;
+            setFont(Stile.piccolo().deriveFont(java.awt.Font.BOLD));
+            setForeground(foreground);
+            setBorder(BorderFactory.createEmptyBorder(7, 9, 7, 9));
+        }
+
+        @Override protected void paintComponent(Graphics g) {
+            Graphics2D g2 = Stile.liscio(g);
+            try {
+                Stile.riquadro(g2, 0, 0, getWidth(), getHeight(),
+                        Stile.px(8), background, null);
+            } finally {
+                g2.dispose();
+            }
+            super.paintComponent(g);
+        }
+    }
 }
