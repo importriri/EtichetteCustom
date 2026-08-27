@@ -328,45 +328,38 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
     }
 
     private Component alignment(final Elemento element) {
-        JPanel panel = compactGroup();
-        ButtonGroup group = new ButtonGroup();
-        String[] labels = {"Sinistra", "Centro", "Destra"};
-        for (int i = 0; i < labels.length; i++) {
-            final int value = i;
-            JToggleButton button = choice(labels[i], element.allineamento() == i);
-            button.addActionListener(e -> {
-                if (!silent) {
-                    mark();
-                    element.allineamento(value);
-                    changed();
-                }
-            });
-            group.add(button);
-            panel.add(button);
-        }
-        return panel;
+        final JComboBox<String> combo = new JComboBox<String>(
+                new String[] {"Sinistra", "Centro", "Destra"});
+        combo.setName("text-alignment");
+        combo.setFont(Stile.normale());
+        combo.setSelectedIndex(Math.max(0, Math.min(2, element.allineamento())));
+        combo.setPreferredSize(new Dimension(Stile.px(150), Stile.px(34)));
+        combo.addActionListener(e -> {
+            if (!silent && combo.getSelectedIndex() >= 0) {
+                mark();
+                element.allineamento(combo.getSelectedIndex());
+                changed();
+            }
+        });
+        return combo;
     }
 
     private Component rows(final Elemento element) {
-        JPanel panel = compactGroup();
-        ButtonGroup group = new ButtonGroup();
-        String[] labels = {"Auto", "1", "2", "3"};
-        int current = element.righePreferite();
-        for (int i = 0; i < labels.length; i++) {
-            final int value = i;
-            JToggleButton button = choice(labels[i], current == i);
-            button.addActionListener(e -> {
-                if (!silent) {
-                    mark();
-                    element.righePreferite(value);
-                    element.massimoRighe(3);
-                    changed();
-                }
-            });
-            group.add(button);
-            panel.add(button);
-        }
-        return panel;
+        final JComboBox<String> combo = new JComboBox<String>(
+                new String[] {"Automatiche", "1", "2", "3"});
+        combo.setName("text-rows");
+        combo.setFont(Stile.normale());
+        combo.setSelectedIndex(Math.max(0, Math.min(3, element.righePreferite())));
+        combo.setPreferredSize(new Dimension(Stile.px(150), Stile.px(34)));
+        combo.addActionListener(e -> {
+            if (!silent && combo.getSelectedIndex() >= 0) {
+                mark();
+                element.righePreferite(combo.getSelectedIndex());
+                element.massimoRighe(3);
+                changed();
+            }
+        });
+        return combo;
     }
 
     private Component qr(final Etichetta label, final Elemento element) {
@@ -452,22 +445,17 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         Scheda card = new Scheda("Posizione");
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JPanel rotation = compactGroup();
-        ButtonGroup group = new ButtonGroup();
-        int[] degrees = {0, 90, 180, 270};
-        for (final int degree : degrees) {
-            JToggleButton button = choice(degree + "°", element.rotazione() == degree);
-            button.addActionListener(e -> {
-                if (!silent) {
-                    mark();
-                    element.rotazione(degree);
-                    changed();
-                }
-            });
-            group.add(button);
-            rotation.add(button);
-        }
-        card.riga("Ruota", rotation);
+        Bottone rotate = Bottone.normale("↻  Ruota 90°");
+        rotate.setName("rotate-90");
+        rotate.setToolTipText("Ogni clic ruota l'elemento di 90 gradi.");
+        rotate.addActionListener(e -> {
+            if (!silent) {
+                mark();
+                element.rotazione((element.rotazione() + 90) % 360);
+                changed();
+            }
+        });
+        card.largo(rotate);
 
         JToggleButton precision = choice(showPrecision ? "Nascondi misure" : "Misure precise…",
                 showPrecision);
