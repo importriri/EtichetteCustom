@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.0 — 2026-08-27
+
+- Start from a fresh v2 data directory so production PCs do not inherit labels from older versions.
+- Show one simple 50 x 30 mm example label on first run instead of a gallery of predefined templates.
+- Keep the exact source value for QR/barcode data while allowing the human-readable text to hide punctuation/separators.
+- Persist text presentation options in the label format while remaining able to read older files.
+- Support left, center and right text alignment in the renderer.
+- Keep text wrapping capped at three lines and preserve existing 0/90/180/270 degree rotation support.
+- Use the same renderer for preview, export and print so the displayed label and printed label stay consistent.
+
 ## 1.0.0 — 2026-08-25
 
 - Introduced the gallery, protected operator mode and dedicated layout editor.
