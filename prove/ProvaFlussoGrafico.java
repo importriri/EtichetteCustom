@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
+import javax.swing.JComboBox;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -80,10 +81,12 @@ public final class ProvaFlussoGrafico {
         check("workspace has no JSpinner", count(editorComponents, JSpinner.class) == 0);
         check("print action fits without truncation",
                 buttonFits(findButton(editorComponents, "Anteprima e stampa")));
-        check("left alignment fits without truncation",
-                buttonFits(findButton(editorComponents, "Sinistra")));
-        check("270 degree rotation fits without truncation",
-                buttonFits(findButton(editorComponents, "270°")));
+        check("alignment chooser remains comfortably visible",
+                comboFits(findNamedCombo(editorComponents, "text-alignment")));
+        check("line-count chooser remains comfortably visible",
+                comboFits(findNamedCombo(editorComponents, "text-rows")));
+        check("rotate action fits without truncation",
+                buttonFits(findNamedButton(editorComponents, "rotate-90")));
 
         Operatore operator = new Operatore(label, qr, settings, archive, log,
                 new Runnable() { @Override public void run() { } },
@@ -150,9 +153,33 @@ public final class ProvaFlussoGrafico {
         return null;
     }
 
+    private static AbstractButton findNamedButton(List<Component> all, String name) {
+        for (Component component : all) {
+            if (component instanceof AbstractButton && name.equals(component.getName())) {
+                return (AbstractButton) component;
+            }
+        }
+        return null;
+    }
+
+    private static JComboBox<?> findNamedCombo(List<Component> all, String name) {
+        for (Component component : all) {
+            if (component instanceof JComboBox && name.equals(component.getName())) {
+                return (JComboBox<?>) component;
+            }
+        }
+        return null;
+    }
+
     private static boolean buttonFits(AbstractButton button) {
         if (button == null || button.getWidth() <= 0) return false;
-        return button.getWidth() + Stile.px(2) >= button.getPreferredSize().width;
+        int textWidth = button.getFontMetrics(button.getFont()).stringWidth(button.getText());
+        return button.getWidth() >= textWidth + Stile.px(14);
+    }
+
+    private static boolean comboFits(JComboBox<?> combo) {
+        return combo != null && combo.getWidth() >= Stile.px(120)
+                && combo.getHeight() >= Stile.px(28);
     }
 
     private static boolean hasTextFieldValue(List<Component> all, String value) {
