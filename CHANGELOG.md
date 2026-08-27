@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.2 — unreleased
+## 2.0.2 — 2026-08-27
 
 - Rework the editor around progressive disclosure so secondary controls appear only when the selected element needs them.
 - Replace the four permanent rotation buttons with one **Rotate 90°** action.
@@ -14,6 +14,7 @@
 - Move label-orientation and advanced-data actions into one overflow menu and reduce persistent editor chrome.
 - Cap editor side-panel widths at large UI scales so the canvas keeps useful working space on Windows HiDPI desktops.
 - Tighten the repository presentation around the same concise structure used by AutoFillSuite.
+- Refresh the README demo and screenshots from the verified Windows graphical audit.
 - Expand graphical audits to protect the simplified first-run gallery, contextual inspector and print flow.
 
 ## 2.0.1 — 2026-08-27
