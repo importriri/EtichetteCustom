@@ -8,6 +8,7 @@
 - Persist text presentation options in the label format while remaining able to read older files.
 - Support left, center and right text alignment in the renderer.
 - Keep text wrapping capped at three lines and preserve existing 0/90/180/270 degree rotation support.
+- Preserve the legacy sample fixtures for verification while production uses the single fresh v2 example.
 - Use the same renderer for preview, export and print so the displayed label and printed label stay consistent.
 
 ## 1.0.0 — 2026-08-25
