@@ -33,7 +33,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
-import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -58,7 +57,6 @@ public final class Operatore extends JPanel {
     private final Bottone print = Bottone.primario("Stampa 12 etichette");
 
     private final Map<Campo, JTextField> values = new LinkedHashMap<Campo, JTextField>();
-    private final Map<Campo, JComboBox<Integer>> digits = new LinkedHashMap<Campo, JComboBox<Integer>>();
     private final Map<Campo, CodiceView[]> ranges = new LinkedHashMap<Campo, CodiceView[]>();
     private boolean updating;
 
@@ -110,7 +108,7 @@ public final class Operatore extends JPanel {
 
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(12), 0));
         left.setOpaque(false);
-        Bottone backButton = Bottone.piatto("‹  Vetrina");
+        Bottone backButton = Bottone.piatto("‹  Etichette");
         backButton.addActionListener(e -> back.run());
         left.add(backButton);
 
@@ -130,7 +128,8 @@ public final class Operatore extends JPanel {
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, Stile.px(7), 0));
         right.setOpaque(false);
-        Bottone settingsButton = Bottone.piatto("⚙  Impostazioni");
+        Bottone settingsButton = Bottone.piatto("⚙");
+        settingsButton.setToolTipText("Impostazioni");
         settingsButton.addActionListener(e -> Finestre.impostazioni(this, settings));
         Bottone editButton = Bottone.normale("Modifica layout");
         editButton.addActionListener(e -> edit.run());
@@ -149,7 +148,7 @@ public final class Operatore extends JPanel {
         GridBagConstraints left = new GridBagConstraints();
         left.gridx = 0;
         left.gridy = 0;
-        left.weightx = .68;
+        left.weightx = .70;
         left.weighty = 1;
         left.fill = GridBagConstraints.BOTH;
         left.insets = new Insets(0, 0, 0, Stile.px(20));
@@ -162,7 +161,7 @@ public final class Operatore extends JPanel {
         GridBagConstraints right = new GridBagConstraints();
         right.gridx = 1;
         right.gridy = 0;
-        right.weightx = .32;
+        right.weightx = .30;
         right.weighty = 1;
         right.fill = GridBagConstraints.BOTH;
         panel.add(controls(), right);
@@ -173,27 +172,16 @@ public final class Operatore extends JPanel {
         JPanel column = new JPanel(new BorderLayout());
         column.setBackground(Stile.BASE);
 
-        JPanel heading = new JPanel();
-        heading.setOpaque(false);
-        heading.setLayout(new BoxLayout(heading, BoxLayout.Y_AXIS));
         JLabel title = new JLabel("Prepara la stampa");
         title.setFont(Stile.titolo());
         title.setForeground(Stile.TESTO);
-        title.setAlignmentX(Component.LEFT_ALIGNMENT);
-        heading.add(title);
-        JLabel subtitle = new JLabel("Inserisci solo i dati di questo giro.");
-        subtitle.setFont(Stile.piccolo());
-        subtitle.setForeground(Stile.SUB0);
-        subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
-        heading.add(subtitle);
-        heading.setBorder(BorderFactory.createEmptyBorder(0, 0, Stile.px(12), 0));
-        column.add(heading, BorderLayout.NORTH);
+        title.setBorder(BorderFactory.createEmptyBorder(0, 0, Stile.px(12), 0));
+        column.add(title, BorderLayout.NORTH);
 
         JPanel list = new JPanel();
         list.setOpaque(false);
         list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
         values.clear();
-        digits.clear();
         ranges.clear();
 
         int editableCount = 0;
@@ -204,7 +192,7 @@ public final class Operatore extends JPanel {
             editableCount++;
         }
         if (editableCount == 0) {
-            JLabel none = new JLabel("Nessun dato da inserire per questa etichetta.");
+            JLabel none = new JLabel("Nessun dato da inserire.");
             none.setFont(Stile.piccolo());
             none.setForeground(Stile.SUB0);
             none.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -243,14 +231,14 @@ public final class Operatore extends JPanel {
         print.setMaximumSize(new Dimension(Integer.MAX_VALUE, Stile.px(44)));
         bottom.add(print);
 
-        Bottone export = Bottone.normale("Esporta…");
+        Bottone export = Bottone.piatto("Esporta…");
         export.setAlignmentX(Component.LEFT_ALIGNMENT);
-        export.setMaximumSize(new Dimension(Integer.MAX_VALUE, Stile.px(38)));
+        export.setMaximumSize(new Dimension(Integer.MAX_VALUE, Stile.px(34)));
         export.addActionListener(e -> {
             Integer count = copyCount();
             if (count != null) Finestre.esporta(this, label, qr, count.intValue());
         });
-        bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(6)));
+        bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(4)));
         bottom.add(export);
         column.add(bottom, BorderLayout.SOUTH);
         return column;
@@ -279,16 +267,7 @@ public final class Operatore extends JPanel {
         card.add(title, c);
 
         c.gridy++;
-        c.insets = new Insets(Stile.px(2), 0, Stile.px(8), 0);
-        JLabel mode = new JLabel(field.comportamento() == Comportamento.PROGRESSIVO
-                ? "Aumenta automaticamente"
-                : "Chiesto prima della stampa");
-        mode.setFont(Stile.minuscolo());
-        mode.setForeground(accent);
-        card.add(mode, c);
-
-        c.gridy++;
-        c.insets = new Insets(0, 0, Stile.px(4), 0);
+        c.insets = new Insets(Stile.px(8), 0, Stile.px(4), 0);
         JLabel valueLabel = new JLabel(field.comportamento() == Comportamento.PROGRESSIVO
                 ? "Codice iniziale" : "Valore");
         valueLabel.setFont(Stile.piccolo());
@@ -310,28 +289,6 @@ public final class Operatore extends JPanel {
         });
 
         if (field.comportamento() == Comportamento.PROGRESSIVO) {
-            c.gridy++;
-            c.insets = new Insets(Stile.px(9), 0, Stile.px(4), 0);
-            JLabel digitsLabel = new JLabel("Ultime cifre che aumentano");
-            digitsLabel.setFont(Stile.piccolo());
-            digitsLabel.setForeground(Stile.SUB0);
-            card.add(digitsLabel, c);
-
-            Integer[] options = new Integer[9];
-            for (int i = 0; i < options.length; i++) options[i] = Integer.valueOf(i + 1);
-            int current = field.serie() == null ? 3 : field.serie().cifre();
-            JComboBox<Integer> digitChoice = new JComboBox<Integer>(options);
-            digitChoice.setSelectedItem(Integer.valueOf(current));
-            digitChoice.setFont(Stile.normale());
-            digitChoice.setPreferredSize(new Dimension(Stile.px(90), Stile.px(36)));
-            digits.put(field, digitChoice);
-            c.gridy++;
-            c.insets = new Insets(0, 0, 0, 0);
-            card.add(digitChoice, c);
-            digitChoice.addActionListener(e -> {
-                if (!updating) saveInputsAndRefresh();
-            });
-
             JPanel range = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(5), 0));
             range.setOpaque(false);
             CodiceView from = new CodiceView("", "");
@@ -365,10 +322,7 @@ public final class Operatore extends JPanel {
             String value = entry.getValue().getText().trim();
             try {
                 if (field.comportamento() == Comportamento.PROGRESSIVO) {
-                    JComboBox<Integer> choice = digits.get(field);
-                    int count = choice == null
-                            ? (field.serie() == null ? 3 : field.serie().cifre())
-                            : ((Integer) choice.getSelectedItem()).intValue();
+                    int count = field.serie() == null ? 3 : field.serie().cifre();
                     field.serie(new Serie(value, count));
                 } else {
                     field.valore(value);
@@ -427,7 +381,7 @@ public final class Operatore extends JPanel {
             if (error == null && count != null) {
                 int n = count.intValue();
                 print.setText("Stampa " + n + (n == 1 ? " etichetta" : " etichette"));
-                state.setText("✓  Pronto per la stampa");
+                state.setText("✓  Pronto");
                 state.setForeground(Stile.VERDE);
                 detail.setText(n + (n == 1 ? " etichetta" : " etichette")
                         + " · " + num(label.larghezza()) + " × " + num(label.altezza()) + " mm");
@@ -513,12 +467,8 @@ public final class Operatore extends JPanel {
                 BorderFactory.createMatteBorder(1, 0, 0, 0, Stile.S0),
                 BorderFactory.createEmptyBorder(
                         Stile.px(7), Stile.px(18), Stile.px(7), Stile.px(18))));
-        JLabel mode = new JLabel("MODALITA' OPERATORE  ·  layout protetto");
-        mode.setFont(Stile.minuscolo());
-        mode.setForeground(Stile.OV1);
         result.setFont(Stile.piccolo());
         result.setHorizontalAlignment(SwingConstants.RIGHT);
-        panel.add(mode, BorderLayout.WEST);
         panel.add(result, BorderLayout.EAST);
         return panel;
     }
