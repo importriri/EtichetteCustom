@@ -26,6 +26,7 @@ import java.util.List;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -75,6 +76,10 @@ public final class ProvaFlussoGrafico {
         check("gallery has no JSpinner", count(galleryComponents, JSpinner.class) == 0);
         check("new-label action fits without truncation",
                 buttonFits(findButton(galleryComponents, "+  Nuova etichetta")));
+        check("gallery exposes one new-label affordance",
+                countTextContaining(galleryComponents, "Nuova etichetta") == 1);
+        check("search stays hidden for one model",
+                visibleCount(galleryComponents, JTextField.class) == 0);
 
         Banco editor = new Banco(label, qr, settings, archive, log,
                 new Runnable() { @Override public void run() { } },
@@ -98,6 +103,8 @@ public final class ProvaFlussoGrafico {
         auditScreen(operator, "operator", 1280, 760);
         List<Component> operatorComponents = components(operator);
         check("operator mode has no JSpinner", count(operatorComponents, JSpinner.class) == 0);
+        check("operator keeps sequence configuration out of the run",
+                count(operatorComponents, JComboBox.class) == 0);
         check("fixed values stay out of print preparation",
                 !hasTextFieldValue(operatorComponents, "D04")
                         && !hasTextFieldValue(operatorComponents, "03_01-02"));
@@ -157,6 +164,25 @@ public final class ProvaFlussoGrafico {
     private static int count(List<Component> all, Class<?> type) {
         int count = 0;
         for (Component component : all) if (type.isInstance(component)) count++;
+        return count;
+    }
+
+    private static int visibleCount(List<Component> all, Class<?> type) {
+        int count = 0;
+        for (Component component : all) {
+            if (type.isInstance(component) && component.isVisible()) count++;
+        }
+        return count;
+    }
+
+    private static int countTextContaining(List<Component> all, String text) {
+        int count = 0;
+        for (Component component : all) {
+            String value = null;
+            if (component instanceof AbstractButton) value = ((AbstractButton) component).getText();
+            if (component instanceof JLabel) value = ((JLabel) component).getText();
+            if (value != null && value.contains(text)) count++;
+        }
         return count;
     }
 
