@@ -2,12 +2,14 @@ package prove;
 
 import app.archivio.Archivio;
 import app.archivio.Registro;
+import app.modello.Elemento;
 import app.modello.Etichetta;
 import app.modello.Impostazioni;
 import app.modello.Libreria;
 import app.render.QrVero;
 import app.stile.Stile;
 import app.ui.banco.Banco;
+import app.ui.banco.Foglio;
 import app.ui.operatore.Operatore;
 import app.ui.vetrina.Vetrina;
 
@@ -18,6 +20,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import javax.imageio.ImageIO;
@@ -28,7 +31,7 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
-/** Full-screen graphical audit for the gallery, editor and print flow. */
+/** Full-screen graphical audit for the first-run gallery, editor and print flow. */
 public final class ProvaFlussoGrafico {
     private static int ok;
     private static int ko;
@@ -56,7 +59,7 @@ public final class ProvaFlussoGrafico {
 
     private static void runAudit() throws Exception {
         Stile.adottaFontDiSistema();
-        Etichetta label = Libreria.articolo();
+        Etichetta label = Libreria.esempio();
         QrVero qr = new QrVero();
         Impostazioni settings = new Impostazioni();
         File archiveDir = temporaryDirectory("etichette-ui-archive");
@@ -76,6 +79,7 @@ public final class ProvaFlussoGrafico {
         Banco editor = new Banco(label, qr, settings, archive, log,
                 new Runnable() { @Override public void run() { } },
                 new Runnable() { @Override public void run() { } });
+        selectFirstText(editor, label);
         auditScreen(editor, "workspace", 1360, 820);
         List<Component> editorComponents = components(editor);
         check("workspace has no JSpinner", count(editorComponents, JSpinner.class) == 0);
@@ -101,6 +105,19 @@ public final class ProvaFlussoGrafico {
                 hasTextFieldValue(operatorComponents, "12"));
         check("print button fits without truncation",
                 buttonFits(findButton(operatorComponents, "Stampa 12 etichette")));
+    }
+
+    private static void selectFirstText(Banco editor, Etichetta label) throws Exception {
+        Field field = Banco.class.getDeclaredField("canvas");
+        field.setAccessible(true);
+        Foglio canvas = (Foglio) field.get(editor);
+        for (Elemento element : label.elementi()) {
+            if (element.tipo().scritto()) {
+                canvas.selezione(element);
+                return;
+            }
+        }
+        throw new IllegalStateException("first-run label has no text element");
     }
 
     private static void auditScreen(Component screen, String name, int width, int height)
