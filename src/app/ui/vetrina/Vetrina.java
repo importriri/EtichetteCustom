@@ -13,6 +13,7 @@ import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.util.ArrayList;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -25,392 +26,318 @@ import javax.swing.Scrollable;
 import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import java.util.ArrayList;
 
-/** La schermata di partenza: le etichette in vetrina, e sotto gli ultimi giri. */
+/** Home gallery: labels first, recent print runs second. */
 public class Vetrina extends JPanel {
-
-    private final GrigliaFluida griglia = new GrigliaFluida();
-    private final JLabel conteggio = new JLabel();
+    private final FluidGrid grid = new FluidGrid();
+    private final JLabel count = new JLabel();
     private final SorgenteQr qr;
-    private final JTextField cerca = new JTextField();
-    private List<Etichetta> tutte = new ArrayList<Etichetta>();
+    private final JTextField search = new JTextField();
+    private List<Etichetta> all = new ArrayList<Etichetta>();
 
-    /** Tutto quello che dalla vetrina si puo' chiedere di fare. */
     public interface Comandi {
-        void apri(Etichetta e);
-        void modifica(Etichetta e);
+        void apri(Etichetta label);
+        void modifica(Etichetta label);
         void nuova();
-        void rinomina(Etichetta e);
-        void duplica(Etichetta e);
-        void elimina(Etichetta e);
+        void rinomina(Etichetta label);
+        void duplica(Etichetta label);
+        void elimina(Etichetta label);
         void stampante();
         void impostazioni();
     }
 
-    private final Comandi comandi;
-    private final app.archivio.Registro registro;
-    private final JPanel giri = new JPanel();
+    private final Comandi commands;
+    private final app.archivio.Registro log;
+    private final JPanel recentRuns = new JPanel();
 
-    public Vetrina(List<Etichetta> etichette, SorgenteQr qr, Comandi comandi) {
-        this(etichette, qr, comandi, null);
+    public Vetrina(List<Etichetta> labels, SorgenteQr qr, Comandi commands) {
+        this(labels, qr, commands, null);
     }
 
-    public Vetrina(List<Etichetta> etichette, SorgenteQr qr, Comandi comandi,
-                   app.archivio.Registro registro) {
+    public Vetrina(List<Etichetta> labels, SorgenteQr qr, Comandi commands,
+                   app.archivio.Registro log) {
         super(new BorderLayout());
-        this.comandi = comandi;
+        this.commands = commands;
         this.qr = qr;
-        this.registro = registro;
+        this.log = log;
         setBackground(Stile.BASE);
-        int p = Stile.px(24);
-        setBorder(BorderFactory.createEmptyBorder(p, Stile.px(28), p, Stile.px(28)));
+        int padding = Stile.px(24);
+        setBorder(BorderFactory.createEmptyBorder(
+                padding, Stile.px(28), padding, Stile.px(28)));
 
-        add(intestazione(), BorderLayout.NORTH);
+        add(header(), BorderLayout.NORTH);
 
-        Colonna dentro = new Colonna();
-        griglia.setAlignmentX(Component.LEFT_ALIGNMENT);
-        dentro.add(griglia);
-        JComponent blocco = ultimiGiri();
-        blocco.setAlignmentX(Component.LEFT_ALIGNMENT);
-        dentro.add(blocco);
-        dentro.add(Box.createVerticalGlue());
+        Column content = new Column();
+        grid.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(grid);
+        JComponent recent = recentRunsBlock();
+        recent.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(recent);
+        content.add(Box.createVerticalGlue());
 
-        JScrollPane sp = new JScrollPane(dentro,
+        JScrollPane scroll = new JScrollPane(content,
                 JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
                 JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        sp.setBorder(null);
-        sp.getViewport().setBackground(Stile.BASE);
-        sp.getVerticalScrollBar().setUnitIncrement(Stile.px(24));
-        add(sp, BorderLayout.CENTER);
+        scroll.setBorder(null);
+        scroll.getViewport().setBackground(Stile.BASE);
+        scroll.getVerticalScrollBar().setUnitIncrement(Stile.px(24));
+        add(scroll, BorderLayout.CENTER);
 
-        popola(etichette, qr);
+        popola(labels, qr);
     }
 
-    public void popola(List<Etichetta> etichette, SorgenteQr qr) {
-        tutte = new ArrayList<Etichetta>(etichette);
-        filtra();
-        aggiornaGiri();
+    public void popola(List<Etichetta> labels, SorgenteQr ignored) {
+        all = new ArrayList<Etichetta>(labels);
+        filter();
+        refreshRuns();
     }
 
-    private void filtra() {
-        String q = cerca.getText() == null ? "" : cerca.getText().trim().toLowerCase();
-        griglia.removeAll();
-        int visibili = 0;
-        for (Etichetta e : tutte) {
-            if (!q.isEmpty() && !e.nome().toLowerCase().contains(q)) continue;
-            visibili++;
-            griglia.add(new Tessera(e, qr)
-                    .azione(eti -> comandi.apri(eti))
-                    .menu(this::menuDi));
+    private void filter() {
+        String query = search.getText() == null
+                ? "" : search.getText().trim().toLowerCase();
+        grid.removeAll();
+        int visible = 0;
+        for (Etichetta label : all) {
+            if (!query.isEmpty() && !label.nome().toLowerCase().contains(query)) continue;
+            visible++;
+            grid.add(new Tessera(label, qr)
+                    .azione(item -> commands.apri(item))
+                    .menu(this::showMenu));
         }
-        griglia.add(Tessera.nuova(eti -> comandi.nuova()));
-        int n = q.isEmpty() ? tutte.size() : visibili;
-        conteggio.setText(n + (n == 1 ? " modello" : " modelli"));
-        griglia.revalidate();
-        griglia.repaint();
+        grid.add(Tessera.nuova(item -> commands.nuova()));
+        int n = query.isEmpty() ? all.size() : visible;
+        count.setText(n + (n == 1 ? " modello" : " modelli"));
+        grid.revalidate();
+        grid.repaint();
     }
 
-    private void menuDi(final Etichetta e, int x, int y) {
-        javax.swing.JPopupMenu m = new javax.swing.JPopupMenu();
-        m.add(voceMenu("Apri", () -> comandi.apri(e)));
-        m.add(voceMenu("Rinomina\u2026", () -> comandi.rinomina(e)));
-        m.add(voceMenu("Duplica", () -> comandi.duplica(e)));
-        m.addSeparator();
-        javax.swing.JMenuItem via = voceMenu("Elimina", () -> comandi.elimina(e));
-        via.setForeground(Stile.ROSSO);
-        m.add(via);
-        for (java.awt.Component c : griglia.getComponents()) {
-            if (c instanceof Tessera && ((Tessera) c).etichetta() == e) {
-                m.show(c, x, y);
+    private void showMenu(final Etichetta label, int x, int y) {
+        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+        menu.add(menuItem("Apri", () -> commands.apri(label)));
+        menu.add(menuItem("Rinomina…", () -> commands.rinomina(label)));
+        menu.add(menuItem("Duplica", () -> commands.duplica(label)));
+        menu.addSeparator();
+        javax.swing.JMenuItem delete = menuItem("Elimina", () -> commands.elimina(label));
+        delete.setForeground(Stile.ROSSO);
+        menu.add(delete);
+        for (Component component : grid.getComponents()) {
+            if (component instanceof Tessera && ((Tessera) component).etichetta() == label) {
+                menu.show(component, x, y);
                 return;
             }
         }
     }
 
-    private javax.swing.JMenuItem voceMenu(String testo, final Runnable azione) {
-        javax.swing.JMenuItem i = new javax.swing.JMenuItem(testo);
-        i.setFont(Stile.normale());
-        i.addActionListener(a -> azione.run());
-        return i;
+    private javax.swing.JMenuItem menuItem(String text, final Runnable action) {
+        javax.swing.JMenuItem item = new javax.swing.JMenuItem(text);
+        item.setFont(Stile.normale());
+        item.addActionListener(e -> action.run());
+        return item;
     }
 
-    private JComponent intestazione() {
-        JPanel p = new JPanel(new BorderLayout(Stile.px(16), 0));
-        p.setOpaque(false);
-        p.setBorder(BorderFactory.createEmptyBorder(0, 0, Stile.px(14), 0));
+    private JComponent header() {
+        JPanel panel = new JPanel(new BorderLayout(Stile.px(18), 0));
+        panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 0, Stile.px(18), 0));
 
-        JPanel sx = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(10), 0));
-        sx.setOpaque(false);
-        JLabel t = new JLabel("Etichette");
-        t.setFont(Stile.titolo());
-        t.setForeground(Stile.TESTO);
-        conteggio.setFont(Stile.piccolo());
-        conteggio.setForeground(Stile.OV0);
-        sx.add(t); sx.add(conteggio);
-        p.add(sx, BorderLayout.WEST);
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(10), 0));
+        left.setOpaque(false);
+        JLabel title = new JLabel("Etichette");
+        title.setFont(Stile.titolo());
+        title.setForeground(Stile.TESTO);
+        count.setFont(Stile.piccolo());
+        count.setForeground(Stile.OV0);
+        left.add(title);
+        left.add(count);
+        panel.add(left, BorderLayout.WEST);
 
-        JPanel dx = new JPanel(new BorderLayout(Stile.px(8), 0));
-        dx.setOpaque(false);
-        cerca.setFont(Stile.normale());
-        cerca.setToolTipText("Cerca etichetta");
-        cerca.setPreferredSize(new Dimension(Stile.px(430), Stile.px(34)));
-        cerca.getDocument().addDocumentListener(new DocumentListener() {
-            public void insertUpdate(DocumentEvent e) { filtra(); }
-            public void removeUpdate(DocumentEvent e) { filtra(); }
-            public void changedUpdate(DocumentEvent e) { filtra(); }
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, Stile.px(8), 0));
+        right.setOpaque(false);
+        search.setFont(Stile.normale());
+        search.setToolTipText("Cerca etichetta");
+        search.setPreferredSize(new Dimension(Stile.px(320), Stile.px(36)));
+        search.getDocument().addDocumentListener(new DocumentListener() {
+            @Override public void insertUpdate(DocumentEvent event) { filter(); }
+            @Override public void removeUpdate(DocumentEvent event) { filter(); }
+            @Override public void changedUpdate(DocumentEvent event) { filter(); }
         });
-        Bottone settings = Bottone.normale("⚙  Impostazioni…");
-        settings.addActionListener(e -> comandi.impostazioni());
-        dx.add(cerca, BorderLayout.CENTER);
-        dx.add(settings, BorderLayout.EAST);
-        p.add(dx, BorderLayout.CENTER);
-        return p;
+
+        Bottone newLabel = Bottone.primario("+  Nuova etichetta");
+        newLabel.addActionListener(e -> commands.nuova());
+        Bottone settings = Bottone.piatto("⚙");
+        settings.setToolTipText("Impostazioni");
+        settings.addActionListener(e -> commands.impostazioni());
+        right.add(search);
+        right.add(newLabel);
+        right.add(settings);
+        panel.add(right, BorderLayout.EAST);
+        return panel;
     }
 
-    private JComponent ultimiGiri() {
-        JPanel p = new JPanel();
-        p.setOpaque(false);
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBorder(BorderFactory.createEmptyBorder(Stile.px(22), 0, 0, 0));
+    private JComponent recentRunsBlock() {
+        JPanel panel = new JPanel();
+        panel.setOpaque(false);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(Stile.px(26), 0, 0, 0));
 
-        JLabel t = new JLabel("Ultimi giri");
-        t.setFont(Stile.forte());
-        t.setForeground(Stile.TESTO);
-        t.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(t);
-        p.add(javax.swing.Box.createVerticalStrut(Stile.px(6)));
+        JLabel title = new JLabel("Ultime stampe");
+        title.setFont(Stile.forte());
+        title.setForeground(Stile.TESTO);
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(title);
+        panel.add(Box.createVerticalStrut(Stile.px(6)));
 
-        giri.setOpaque(false);
-        giri.setLayout(new BoxLayout(giri, BoxLayout.Y_AXIS));
-        giri.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(giri);
-        aggiornaGiri();
-        return p;
+        recentRuns.setOpaque(false);
+        recentRuns.setLayout(new BoxLayout(recentRuns, BoxLayout.Y_AXIS));
+        recentRuns.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(recentRuns);
+        refreshRuns();
+        return panel;
     }
 
-    /**
-     * Quello che c'e' scritto nel registro, non quello che farebbe scena.
-     * Se non si e' ancora stampato niente, lo dice.
-     */
-    private void aggiornaGiri() {
-        giri.removeAll();
-        java.util.List<app.archivio.Registro.Giro> ultimi = registro == null
-                ? new java.util.ArrayList<app.archivio.Registro.Giro>()
-                : registro.ultimi(4);
-        if (ultimi.isEmpty()) {
-            JLabel vuoto = new JLabel("Nessuna stampa registrata finora");
-            vuoto.setFont(Stile.piccolo());
-            vuoto.setForeground(Stile.OV0);
-            vuoto.setAlignmentX(Component.LEFT_ALIGNMENT);
-            vuoto.setBorder(BorderFactory.createEmptyBorder(Stile.px(6), Stile.px(8), 0, 0));
-            giri.add(vuoto);
+    private void refreshRuns() {
+        recentRuns.removeAll();
+        List<app.archivio.Registro.Giro> runs = log == null
+                ? new ArrayList<app.archivio.Registro.Giro>()
+                : log.ultimi(4);
+        if (runs.isEmpty()) {
+            JLabel empty = new JLabel("Nessuna stampa registrata finora");
+            empty.setFont(Stile.piccolo());
+            empty.setForeground(Stile.OV0);
+            empty.setAlignmentX(Component.LEFT_ALIGNMENT);
+            empty.setBorder(BorderFactory.createEmptyBorder(
+                    Stile.px(6), Stile.px(8), 0, 0));
+            recentRuns.add(empty);
         } else {
-            for (app.archivio.Registro.Giro g : ultimi) {
-                giri.add(new RigaGiro(g.etichetta(), g.primo(), g.ultimo(),
-                        g.quante() + (g.quante() == 1 ? " etichetta" : " etichette"),
-                        g.quando()));
+            for (app.archivio.Registro.Giro run : runs) {
+                recentRuns.add(new RunRow(run.etichetta(), run.primo(), run.ultimo(),
+                        run.quante() + (run.quante() == 1 ? " etichetta" : " etichette"),
+                        run.quando()));
             }
         }
-        giri.revalidate();
-        giri.repaint();
+        recentRuns.revalidate();
+        recentRuns.repaint();
     }
 
-
-
-    /**
-     * Colonna che segue la larghezza della finestra: cosi' le tessere e
-     * gli ultimi giri scorrono insieme e non resta un buco fra le due cose.
-     */
-    private static class Colonna extends JPanel implements Scrollable {
-
-        Colonna() {
+    private static class Column extends JPanel implements Scrollable {
+        Column() {
             setOpaque(false);
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         }
 
-        @Override
-        public Dimension getMaximumSize() {
+        @Override public Dimension getMaximumSize() {
             return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
         }
-
-        @Override
-        public Dimension getPreferredScrollableViewportSize() {
-            return getPreferredSize();
-        }
-
-        @Override
-        public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
-            return Stile.px(24);
-        }
-
-        @Override
-        public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
-            return Stile.px(200);
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportWidth() {
-            return true;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportHeight() {
-            return false;
-        }
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return Stile.px(24); }
+        @Override public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return Stile.px(200); }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
 
-    /**
-     * Una riga del registro.
-     *
-     * I due codici agli estremi del giro non vengono scritti per intero:
-     * la parte che hanno in comune e' il prefisso fermo, quella che cambia
-     * e' la finestra dell'incremento. Si evidenzia quella - la stessa
-     * lettura che l'operatore trova ovunque nel programma - e la si ricava
-     * dai codici stessi, senza doverla chiedere a nessuno.
-     */
-    private static class RigaGiro extends JComponent {
+    private static class RunRow extends JComponent {
+        private final String name;
+        private final String first;
+        private final String last;
+        private final String amount;
+        private final String when;
 
-        private final String nome;
-        private final String primo;
-        private final String ultimo;
-        private final String quante;
-        private final String quando;
-
-        RigaGiro(String nome, String primo, String ultimo, String quante, String quando) {
-            this.nome = nome;
-            this.primo = primo == null ? "" : primo;
-            this.ultimo = ultimo == null ? "" : ultimo;
-            this.quante = quante;
-            this.quando = quando;
+        RunRow(String name, String first, String last, String amount, String when) {
+            this.name = name;
+            this.first = first == null ? "" : first;
+            this.last = last == null ? "" : last;
+            this.amount = amount;
+            this.when = when;
         }
 
-        private int comune() {
+        private int commonPrefix() {
             int i = 0;
-            while (i < primo.length() && i < ultimo.length()
-                    && primo.charAt(i) == ultimo.charAt(i)) {
-                i++;
-            }
+            while (i < first.length() && i < last.length()
+                    && first.charAt(i) == last.charAt(i)) i++;
             return i;
         }
 
-        @Override
-        public Dimension getMaximumSize() {
-            return new Dimension(Integer.MAX_VALUE, Stile.px(30));
+        @Override public Dimension getMaximumSize() {
+            return new Dimension(Integer.MAX_VALUE, Stile.px(34));
         }
 
-        @Override
-        public Dimension getPreferredSize() {
-            return new Dimension(Stile.px(600), Stile.px(30));
+        @Override public Dimension getPreferredSize() {
+            return new Dimension(Stile.px(700), Stile.px(34));
         }
 
-        @Override
-        protected void paintComponent(Graphics g) {
+        @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = Stile.liscio(g);
             try {
                 g2.setColor(Stile.S0);
                 g2.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
-                int base = Stile.px(19);
+                int baseline = Stile.px(22);
                 g2.setFont(Stile.normale());
                 g2.setColor(Stile.SUB1);
-                g2.drawString(nome, Stile.px(8), base);
+                g2.drawString(name, Stile.px(8), baseline);
 
-                int taglio = comune();
-                String prefisso = primo.substring(0, taglio);
-                if (prefisso.length() > 7) {
-                    prefisso = "\u2026" + prefisso.substring(prefisso.length() - 6);
-                }
+                int split = commonPrefix();
+                String prefix = first.substring(0, split);
+                if (prefix.length() > 7) prefix = "…" + prefix.substring(prefix.length() - 6);
                 java.awt.Font mono = Stile.mono(11);
-                int x = Stile.px(180);
-                x += CodiceView.disegna(g2, x, base, prefisso, primo.substring(taglio), mono);
+                int x = Stile.px(210);
+                x += CodiceView.disegna(g2, x, baseline, prefix, first.substring(split), mono);
                 g2.setFont(mono);
                 g2.setColor(Stile.OV1);
-                g2.drawString("  \u2192  ", x, base);
-                x += g2.getFontMetrics().stringWidth("  \u2192  ");
-                CodiceView.disegna(g2, x, base, prefisso, ultimo.substring(taglio), mono);
+                g2.drawString("  →  ", x, baseline);
+                x += g2.getFontMetrics().stringWidth("  →  ");
+                CodiceView.disegna(g2, x, baseline, prefix, last.substring(split), mono);
 
                 g2.setFont(Stile.normale());
                 g2.setColor(Stile.SUB1);
-                g2.drawString(quante, Stile.px(440), base);
+                g2.drawString(amount, Stile.px(500), baseline);
                 g2.setFont(Stile.piccolo());
                 g2.setColor(Stile.OV0);
-                int w = g2.getFontMetrics().stringWidth(quando);
-                g2.drawString(quando, getWidth() - w - Stile.px(8), base);
+                int width = g2.getFontMetrics().stringWidth(when);
+                g2.drawString(when, getWidth() - width - Stile.px(8), baseline);
             } finally {
                 g2.dispose();
             }
         }
     }
 
-    /**
-     * Le tessere vanno a capo da sole seguendo la larghezza della finestra,
-     * senza barra orizzontale: e' una vetrina, non una tabella.
-     */
-    private static class GrigliaFluida extends JPanel implements Scrollable {
-
-        GrigliaFluida() {
+    private static class FluidGrid extends JPanel implements Scrollable {
+        FluidGrid() {
             setOpaque(false);
             setLayout(null);
         }
 
-        private int passo() {
-            return Stile.px(226) + Stile.px(16);
+        private int step() { return Stile.px(258) + Stile.px(18); }
+        private int columns(int width) {
+            return Math.max(1, (width + Stile.px(18)) / step());
         }
 
-        private int colonne(int larghezza) {
-            return Math.max(1, (larghezza + Stile.px(16)) / passo());
-        }
-
-        @Override
-        public void doLayout() {
-            int col = colonne(getWidth());
+        @Override public void doLayout() {
+            int columns = columns(getWidth());
             int i = 0;
-            for (Component c : getComponents()) {
-                Dimension d = c.getPreferredSize();
-                int r = i / col;
-                int q = i % col;
-                c.setBounds(q * passo(), r * (d.height + Stile.px(16)), d.width, d.height);
+            for (Component component : getComponents()) {
+                Dimension size = component.getPreferredSize();
+                int row = i / columns;
+                int column = i % columns;
+                component.setBounds(column * step(),
+                        row * (size.height + Stile.px(18)), size.width, size.height);
                 i++;
             }
         }
 
-        @Override
-        public Dimension getPreferredSize() {
-            int n = getComponentCount();
-            if (n == 0) {
-                return new Dimension(Stile.px(226), Stile.px(224));
-            }
-            int larghezza = getWidth() > 0 ? getWidth() : Stile.px(1000);
-            int col = colonne(larghezza);
-            int righe = (n + col - 1) / col;
-            int alt = getComponent(0).getPreferredSize().height;
-            return new Dimension(larghezza, righe * (alt + Stile.px(16)));
+        @Override public Dimension getPreferredSize() {
+            int count = getComponentCount();
+            if (count == 0) return new Dimension(Stile.px(258), Stile.px(236));
+            int width = getWidth() > 0 ? getWidth() : Stile.px(1000);
+            int columns = columns(width);
+            int rows = (count + columns - 1) / columns;
+            int height = getComponent(0).getPreferredSize().height;
+            return new Dimension(width, rows * (height + Stile.px(18)));
         }
 
-        @Override
-        public Dimension getPreferredScrollableViewportSize() {
-            return getPreferredSize();
-        }
-
-        @Override
-        public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
-            return Stile.px(24);
-        }
-
-        @Override
-        public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
-            return Stile.px(200);
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportWidth() {
-            return true;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportHeight() {
-            return false;
-        }
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return Stile.px(24); }
+        @Override public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return Stile.px(200); }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
-
 }
