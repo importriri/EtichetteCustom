@@ -8,8 +8,19 @@ public final class Libreria {
 
     private Libreria() { }
 
-    /** Sul nuovo archivio v2 compare una sola etichetta, semplice e modificabile. */
+    /** Fixture storiche usate dai test e da installazioni precedenti. */
     public static List<Etichetta> iniziale() {
+        List<Etichetta> out = new ArrayList<Etichetta>();
+        out.add(articolo());
+        out.add(imballo());
+        out.add(scaffale());
+        out.add(cespite());
+        out.add(minima());
+        return out;
+    }
+
+    /** Sul nuovo archivio v2 compare una sola etichetta semplice e modificabile. */
+    public static List<Etichetta> inizialeV2() {
         List<Etichetta> out = new ArrayList<Etichetta>();
         out.add(esempio());
         return out;
@@ -31,7 +42,6 @@ public final class Libreria {
         return e;
     }
 
-    /* Le fixture storiche restano disponibili per test e compatibilita'. */
     public static Etichetta articolo() {
         Etichetta e = new Etichetta("Articolo demo", 50, 30);
         e.serie(new Serie("740125.003_01-02_584700349", 3));
