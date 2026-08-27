@@ -17,9 +17,9 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.AbstractButton;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
-import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -67,15 +67,30 @@ public final class ProvaInterfaccia {
         inspector.setSize(new Dimension(Stile.px(286), Stile.px(780)));
         layout(inspector);
 
-        List<Component> allInspector = new ArrayList<Component>();
-        collectAll(inspector, allInspector);
-        int comboCount = 0;
-        for (Component component : allInspector) {
-            if (component instanceof JComboBox) comboCount++;
-        }
-        check("only the relevant progressive choice is visible by default", comboCount == 1);
-        check("shared content is summarized without a picker",
-                containsLabel(allInspector, "🔗"));
+        List<Component> allInspector = components(inspector);
+        check("progressive details stay hidden by default", countCombos(allInspector) == 0);
+        AbstractButton behavior = findNamedButton(allInspector, "content-behavior");
+        AbstractButton shared = findNamedButton(allInspector, "shared-content");
+        check("behavior has one compact disclosure action", behavior != null);
+        check("shared content has one compact disclosure action", shared != null);
+        check("detach action stays hidden until shared content is opened",
+                findButton(allInspector, "Rendi indipendente") == null);
+
+        if (behavior != null) behavior.doClick();
+        layout(inspector);
+        allInspector = components(inspector);
+        check("progressive digit choice appears only on request", countCombos(allInspector) == 1);
+
+        inspector.mostra(label, qr);
+        inspector.setSize(new Dimension(Stile.px(286), Stile.px(780)));
+        layout(inspector);
+        allInspector = components(inspector);
+        shared = findNamedButton(allInspector, "shared-content");
+        if (shared != null) shared.doClick();
+        layout(inspector);
+        allInspector = components(inspector);
+        check("shared-content details appear only on request",
+                findButton(allInspector, "Rendi indipendente") != null);
 
         Method general = Finestre.class.getDeclaredMethod(
                 "generale", Component.class, JTextField.class, JTextField.class);
@@ -95,8 +110,7 @@ public final class ProvaInterfaccia {
         JComponent manualPanel = (JComponent) manual.invoke(null, Boolean.TRUE);
         manualPanel.setSize(Stile.px(700), Stile.px(480));
         layout(manualPanel);
-        List<Component> allManual = new ArrayList<Component>();
-        collectAll(manualPanel, allManual);
+        List<Component> allManual = components(manualPanel);
         JScrollPane first = null;
         for (Component component : allManual) {
             if (component instanceof JScrollPane) {
@@ -108,13 +122,37 @@ public final class ProvaInterfaccia {
         check("manual viewport is not tiny", first != null && first.getWidth() >= Stile.px(500));
     }
 
-    private static boolean containsLabel(List<Component> all, String text) {
+    private static List<Component> components(Container root) {
+        List<Component> all = new ArrayList<Component>();
+        collectAll(root, all);
+        return all;
+    }
+
+    private static int countCombos(List<Component> all) {
+        int count = 0;
         for (Component component : all) {
-            if (component instanceof JLabel
-                    && ((JLabel) component).getText() != null
-                    && ((JLabel) component).getText().contains(text)) return true;
+            if (component instanceof JComboBox) count++;
         }
-        return false;
+        return count;
+    }
+
+    private static AbstractButton findNamedButton(List<Component> all, String name) {
+        for (Component component : all) {
+            if (component instanceof AbstractButton && name.equals(component.getName())) {
+                return (AbstractButton) component;
+            }
+        }
+        return null;
+    }
+
+    private static AbstractButton findButton(List<Component> all, String text) {
+        for (Component component : all) {
+            if (component instanceof AbstractButton
+                    && text.equals(((AbstractButton) component).getText())) {
+                return (AbstractButton) component;
+            }
+        }
+        return null;
     }
 
     private static void layout(Container container) {
