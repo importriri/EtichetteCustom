@@ -99,7 +99,25 @@ jobs:
             *) echo "Invalid release version: $version" >&2; exit 1 ;;
           esac
           tag="v$version"
+          awk -v version="$version" '
+            $0 ~ "^## " version " " { section=1; next }
+            section && /^## / { exit }
+            section { print }
+          ' CHANGELOG.md > release/RELEASE_NOTES.md
+          test -s release/RELEASE_NOTES.md
           gh release create "$tag" release/EtichetteCustom.jar \
             --target "$GITHUB_SHA" \
             --title "Etichette Custom $version" \
-            --notes-file CHANGELOG.md
+            --notes-file release/RELEASE_NOTES.md
+      - name: Keep only the main branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/${{ github.repository }}/branches?per_page=100" --jq '.[].name' |
+          while IFS= read -r branch; do
+            [ "$branch" = "main" ] && continue
+            encoded="$(jq -rn --arg value "$branch" '$value|@uri')"
+            echo "Deleting branch: $branch"
+            gh api --method DELETE "repos/${{ github.repository }}/git/refs/heads/$encoded"
+          done
