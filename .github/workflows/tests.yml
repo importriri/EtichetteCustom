@@ -55,12 +55,12 @@ jobs:
         shell: pwsh
         run: |
           $cp = "build;prove-build"
-          java -Djava.awt.headless=true -cp $cp prove.Tutte
+          java '-Djava.awt.headless=true' -cp $cp prove.Tutte
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          java -Djava.awt.headless=true -cp $cp prove.ProvaRelease
+          java '-Djava.awt.headless=true' -cp $cp prove.ProvaRelease
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           foreach ($scale in 12,15,18,24) {
-            java -Djava.awt.headless=true -cp $cp prove.ProvaEditorGrafico $scale
+            java '-Djava.awt.headless=true' -cp $cp prove.ProvaEditorGrafico $scale
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - uses: actions/upload-artifact@v4
