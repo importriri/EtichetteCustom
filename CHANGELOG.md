@@ -1,19 +1,34 @@
 # Changelog
 
-## 2.0.1 — unreleased
+## 2.0.2 — unreleased
+
+- Rework the editor around progressive disclosure so secondary controls appear only when the selected element needs them.
+- Replace the four permanent rotation buttons with one **Rotate 90°** action.
+- Replace permanent alignment and line-count button groups with compact choosers.
+- Keep exact X/Y/size controls behind **Precise measurements** and QR correction details behind **QR options**.
+- Collapse shared-content management behind a single `QR + Text` control; separating the selected element is shown only after opening it.
+- Keep sequence-window configuration in the editor and remove it from routine print preparation.
+- Simplify print preparation to the current run: starting values, requested values, outgoing range, copies and the print action.
+- Remove the duplicate new-label affordance from the gallery, hide search for small galleries and hide print history until a run exists.
+- Start the layout editor with no element selected so the inspector stays quiet until the user chooses something.
+- Move label-orientation and advanced-data actions into one overflow menu and reduce persistent editor chrome.
+- Cap editor side-panel widths at large UI scales so the canvas keeps useful working space on Windows HiDPI desktops.
+- Tighten the repository presentation around the same concise structure used by AutoFillSuite.
+- Expand graphical audits to protect the simplified first-run gallery, contextual inspector and print flow.
+
+## 2.0.1 — 2026-08-27
 
 - Rework the layout editor around direct manipulation: drag elements to move them and drag visible corner handles to resize them.
 - Keep QR resize square automatically so a quick mouse gesture cannot distort its geometry.
 - Hide X/Y/width/font measurements by default; precise millimetre controls remain available only when explicitly requested.
 - Remove `JSpinner` from the primary editor to avoid inconsistent Windows delegates and make routine editing easier to scan.
-- Expose text alignment, automatic/1/2/3-line layout, separator visibility and 0/90/180/270 degree rotation directly in the inspector.
+- Add text alignment, automatic/1/2/3-line layout, separator visibility and 0/90/180/270 degree rotation.
 - Keep punctuation hiding presentation-only: QR and barcode data always retain the exact source string.
 - Improve automatic wrapping so long codes prefer natural separators, balance lines and never silently lose characters.
 - Increase editor-grid contrast and keep the grid application-rendered rather than dependent on the operating-system theme.
-- Make primary editor controls use responsive equal-width groups so common Windows UI scales do not clip the rightmost choices.
+- Make primary editor controls responsive so common Windows UI scales do not clip the rightmost choices.
 - Add native Windows CI alongside Linux, compiling for Java 8 and running the application/tests on Temurin 21.
 - Run graphical editor audits at four UI scales approximating 100%, 125%, 150% and 200%, retaining PNG evidence as CI artifacts.
-- Verify that alignment, three-line layout, 270 degree rotation, hidden separators, exact source data and direct QR resizing work through the UI.
 - Keep the v2 storage location and first-run behaviour: a new archive contains one example label and subsequent starts load only saved user labels.
 
 ## 2.0.0 — 2026-08-27
