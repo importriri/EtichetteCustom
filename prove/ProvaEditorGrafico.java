@@ -23,7 +23,9 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import javax.imageio.ImageIO;
+import javax.swing.AbstractButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
@@ -80,30 +82,46 @@ public final class ProvaEditorGrafico {
         List<Component> components = new ArrayList<Component>();
         collectAll(inspector, components);
         check("primary editor contains no JSpinner", count(components, JSpinner.class) == 0);
-        check("text alignment exposes Centro", findToggle(components, "Centro") != null);
-        check("text alignment exposes Sinistra", findToggle(components, "Sinistra") != null);
-        check("text alignment exposes Destra", findToggle(components, "Destra") != null);
-        check("text rows expose Auto", findToggle(components, "Auto") != null);
-        check("text rows expose 3", findToggle(components, "3") != null);
+
+        JComboBox<?> alignment = findNamedCombo(components, "text-alignment");
+        JComboBox<?> rows = findNamedCombo(components, "text-rows");
+        AbstractButton rotate = findNamedButton(components, "rotate-90");
+
+        check("alignment uses one compact chooser", alignment != null && alignment.getItemCount() == 3);
+        check("line count uses one compact chooser", rows != null && rows.getItemCount() == 4);
+        check("rotation uses one direct 90 degree action", rotate != null);
+        check("old four-angle buttons are gone",
+                findButton(components, "0°") == null
+                        && findButton(components, "90°") == null
+                        && findButton(components, "180°") == null
+                        && findButton(components, "270°") == null);
         check("separator visibility is directly exposed",
                 findCheck(components, "Mostra punti e simboli") != null);
         check("secondary behavior choices stay hidden by default",
                 findToggle(components, "Aumenta") == null);
-        check("right alignment stays inside inspector",
-                insideHorizontally(inspector, findToggle(components, "Destra")));
-        check("third row choice stays inside inspector",
-                insideHorizontally(inspector, findToggle(components, "3")));
-        check("270 degree choice stays inside inspector",
-                insideHorizontally(inspector, findToggle(components, "270°")));
+        check("alignment chooser stays inside inspector",
+                insideHorizontally(inspector, alignment));
+        check("line chooser stays inside inspector",
+                insideHorizontally(inspector, rows));
+        check("rotate action stays inside inspector",
+                insideHorizontally(inspector, rotate));
+
         int fieldsBefore = count(components, JTextField.class);
         check("precision fields stay hidden by default", fieldsBefore <= 2);
 
-        JToggleButton center = findToggle(components, "Centro");
-        center.doClick();
-        check("center button updates model", text.allineamento() == 1);
-        JToggleButton three = findToggle(components, "3");
-        three.doClick();
-        check("three-line button updates model", text.righePreferite() == 3);
+        if (alignment != null) alignment.setSelectedItem("Centro");
+        check("alignment chooser updates model", text.allineamento() == 1);
+        if (rows != null) rows.setSelectedItem("3");
+        check("line chooser updates model", text.righePreferite() == 3);
+
+        if (rotate != null) rotate.doClick();
+        check("one rotate click advances exactly 90 degrees", text.rotazione() == 90);
+        if (rotate != null) {
+            rotate.doClick();
+            rotate.doClick();
+            rotate.doClick();
+        }
+        check("four rotate clicks return to zero", text.rotazione() == 0);
 
         JCheckBox separators = findCheck(components, "Mostra punti e simboli");
         if (!separators.isSelected()) separators.doClick();
@@ -239,6 +257,34 @@ public final class ProvaEditorGrafico {
         int count = 0;
         for (Component component : all) if (type.isInstance(component)) count++;
         return count;
+    }
+
+    private static JComboBox<?> findNamedCombo(List<Component> all, String name) {
+        for (Component component : all) {
+            if (component instanceof JComboBox && name.equals(component.getName())) {
+                return (JComboBox<?>) component;
+            }
+        }
+        return null;
+    }
+
+    private static AbstractButton findNamedButton(List<Component> all, String name) {
+        for (Component component : all) {
+            if (component instanceof AbstractButton && name.equals(component.getName())) {
+                return (AbstractButton) component;
+            }
+        }
+        return null;
+    }
+
+    private static AbstractButton findButton(List<Component> all, String text) {
+        for (Component component : all) {
+            if (component instanceof AbstractButton
+                    && text.equals(((AbstractButton) component).getText())) {
+                return (AbstractButton) component;
+            }
+        }
+        return null;
     }
 
     private static JToggleButton findToggle(List<Component> all, String text) {
