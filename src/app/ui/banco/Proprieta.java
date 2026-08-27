@@ -574,8 +574,8 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
     }
 
     private static String behaviorLabel(Comportamento behavior) {
-        if (behavior == Comportamento.PROGRESSIVO) return "Aumenta automaticamente";
-        if (behavior == Comportamento.CHIESTO) return "Chiesto alla stampa";
+        if (behavior == Comportamento.PROGRESSIVO) return "Aumenta da solo";
+        if (behavior == Comportamento.CHIESTO) return "Da inserire in stampa";
         return "Non cambia";
     }
 
