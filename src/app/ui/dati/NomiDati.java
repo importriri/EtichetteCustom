@@ -8,7 +8,7 @@ import app.modello.Tipo;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Nomi leggibili per gli identificatori salvati, senza cambiare la compatibilità dei file. */
+/** Human-readable names for persisted identifiers without changing file compatibility. */
 public final class NomiDati {
     private NomiDati() { }
 
