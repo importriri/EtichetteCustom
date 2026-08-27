@@ -99,6 +99,9 @@ public final class ProvaEditorGrafico {
                 findCheck(components, "Mostra punti e simboli") != null);
         check("secondary behavior choices stay hidden by default",
                 findToggle(components, "Aumenta") == null);
+        check("shared-content actions stay hidden by default",
+                findButton(components, "Rendi indipendente") == null
+                        && findNamedButton(components, "shared-content") != null);
         check("alignment chooser stays inside inspector",
                 insideHorizontally(inspector, alignment));
         check("line chooser stays inside inspector",
@@ -135,7 +138,20 @@ public final class ProvaEditorGrafico {
         layout(inspector);
         components.clear();
         collectAll(inspector, components);
-        JToggleButton behavior = findToggle(components, "Cambia comportamento…");
+
+        AbstractButton shared = findNamedButton(components, "shared-content");
+        if (shared != null) shared.doClick();
+        layout(inspector);
+        components.clear();
+        collectAll(inspector, components);
+        check("shared-content actions appear only on request",
+                findButton(components, "Rendi indipendente") != null);
+
+        inspector.mostra(label, text);
+        layout(inspector);
+        components.clear();
+        collectAll(inspector, components);
+        JToggleButton behavior = findToggle(components, "Come cambia…");
         check("behavior options have one explicit entry point", behavior != null);
         if (behavior != null) behavior.doClick();
         layout(inspector);
