@@ -27,7 +27,7 @@ import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
-/** Home gallery: labels first, recent print runs second. */
+/** Home gallery: labels first, recent print runs only when they exist. */
 public class Vetrina extends JPanel {
     private final FluidGrid grid = new FluidGrid();
     private final JLabel count = new JLabel();
@@ -49,6 +49,7 @@ public class Vetrina extends JPanel {
     private final Comandi commands;
     private final app.archivio.Registro log;
     private final JPanel recentRuns = new JPanel();
+    private JComponent recentBlock;
 
     public Vetrina(List<Etichetta> labels, SorgenteQr qr, Comandi commands) {
         this(labels, qr, commands, null);
@@ -70,9 +71,9 @@ public class Vetrina extends JPanel {
         Column content = new Column();
         grid.setAlignmentX(Component.LEFT_ALIGNMENT);
         content.add(grid);
-        JComponent recent = recentRunsBlock();
-        recent.setAlignmentX(Component.LEFT_ALIGNMENT);
-        content.add(recent);
+        recentBlock = recentRunsBlock();
+        recentBlock.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(recentBlock);
         content.add(Box.createVerticalGlue());
 
         JScrollPane scroll = new JScrollPane(content,
@@ -88,6 +89,7 @@ public class Vetrina extends JPanel {
 
     public void popola(List<Etichetta> labels, SorgenteQr ignored) {
         all = new ArrayList<Etichetta>(labels);
+        search.setVisible(all.size() >= 6);
         filter();
         refreshRuns();
     }
@@ -191,7 +193,6 @@ public class Vetrina extends JPanel {
         recentRuns.setLayout(new BoxLayout(recentRuns, BoxLayout.Y_AXIS));
         recentRuns.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(recentRuns);
-        refreshRuns();
         return panel;
     }
 
@@ -200,20 +201,11 @@ public class Vetrina extends JPanel {
         List<app.archivio.Registro.Giro> runs = log == null
                 ? new ArrayList<app.archivio.Registro.Giro>()
                 : log.ultimi(4);
-        if (runs.isEmpty()) {
-            JLabel empty = new JLabel("Nessuna stampa registrata finora");
-            empty.setFont(Stile.piccolo());
-            empty.setForeground(Stile.OV0);
-            empty.setAlignmentX(Component.LEFT_ALIGNMENT);
-            empty.setBorder(BorderFactory.createEmptyBorder(
-                    Stile.px(6), Stile.px(8), 0, 0));
-            recentRuns.add(empty);
-        } else {
-            for (app.archivio.Registro.Giro run : runs) {
-                recentRuns.add(new RunRow(run.etichetta(), run.primo(), run.ultimo(),
-                        run.quante() + (run.quante() == 1 ? " etichetta" : " etichette"),
-                        run.quando()));
-            }
+        if (recentBlock != null) recentBlock.setVisible(!runs.isEmpty());
+        for (app.archivio.Registro.Giro run : runs) {
+            recentRuns.add(new RunRow(run.etichetta(), run.primo(), run.ultimo(),
+                    run.quante() + (run.quante() == 1 ? " etichetta" : " etichette"),
+                    run.quando()));
         }
         recentRuns.revalidate();
         recentRuns.repaint();
