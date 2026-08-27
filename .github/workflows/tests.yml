@@ -26,13 +26,56 @@ jobs:
           path: dist/EtichetteCustom.jar
           if-no-files-found: error
           retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EtichetteCustom-linux-ui-audit
+          path: build/ui-audit/*.png
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-ui:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Compile application and tests
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build, prove-build | Out-Null
+          $src = Get-ChildItem src -Recurse -Filter *.java | ForEach-Object { $_.FullName }
+          $prove = Get-ChildItem prove -Recurse -Filter *.java | ForEach-Object { $_.FullName }
+          javac --release 8 -encoding UTF-8 -Xlint:all,-serial,-this-escape,-options -Werror -d build $src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          javac --release 8 -encoding UTF-8 -Xlint:all,-serial,-this-escape,-options -Werror -cp build -d prove-build $prove
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run Windows core and graphical audits
+        shell: pwsh
+        run: |
+          $cp = "build;prove-build"
+          java -Djava.awt.headless=true -cp $cp prove.Tutte
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          java -Djava.awt.headless=true -cp $cp prove.ProvaRelease
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($scale in 12,15,18,24) {
+            java -Djava.awt.headless=true -cp $cp prove.ProvaEditorGrafico $scale
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EtichetteCustom-windows-ui-audit
+          path: build/ui-audit/*.png
+          if-no-files-found: error
+          retention-days: 14
 
   release:
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       startsWith(github.event.head_commit.message, 'Release Etichette Custom ')
-    needs: test
+    needs: [test, windows-ui]
     runs-on: ubuntu-latest
     permissions:
       contents: write
