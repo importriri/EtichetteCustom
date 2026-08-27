@@ -174,24 +174,25 @@ public final class Operatore extends JPanel {
     }
 
     private javax.swing.JComponent controls() {
-        JPanel column = new JPanel(new BorderLayout());
-        column.setBackground(Stile.BASE);
+        ScrollableColumn content = new ScrollableColumn();
+        content.setBorder(BorderFactory.createEmptyBorder(0, 0, Stile.px(4), 0));
 
         JLabel title = new JLabel("Prepara la stampa");
         title.setFont(Stile.titolo());
         title.setForeground(Stile.TESTO);
-        title.setBorder(BorderFactory.createEmptyBorder(0, 0, Stile.px(12), 0));
-        column.add(title, BorderLayout.NORTH);
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(title);
+        content.add(javax.swing.Box.createVerticalStrut(Stile.px(12)));
 
-        ScrollableColumn list = new ScrollableColumn();
         values.clear();
         ranges.clear();
-
         int editableCount = 0;
         for (Campo field : label.campiUsati()) {
             if (field.comportamento() == Comportamento.FISSO) continue;
-            list.add(dataCard(field));
-            list.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
+            javax.swing.JComponent card = dataCard(field);
+            card.setAlignmentX(Component.LEFT_ALIGNMENT);
+            content.add(card);
+            content.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
             editableCount++;
         }
         if (editableCount == 0) {
@@ -199,24 +200,15 @@ public final class Operatore extends JPanel {
             none.setFont(Stile.piccolo());
             none.setForeground(Stile.SUB0);
             none.setAlignmentX(Component.LEFT_ALIGNMENT);
-            list.add(none);
+            content.add(none);
+            content.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
         }
 
-        JScrollPane scroll = new JScrollPane(list,
-                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setName("run-fields");
-        scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.getViewport().setBackground(Stile.BASE);
-        scroll.getVerticalScrollBar().setUnitIncrement(Stile.px(18));
-        column.add(scroll, BorderLayout.CENTER);
-
-        JPanel bottom = new JPanel();
-        bottom.setOpaque(false);
-        bottom.setLayout(new BoxLayout(bottom, BoxLayout.Y_AXIS));
-        bottom.setBorder(BorderFactory.createEmptyBorder(Stile.px(12), 0, 0, 0));
-        bottom.add(labeled("Copie", copies));
-        bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
+        javax.swing.JComponent copyRow = labeled("Copie", copies);
+        copyRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        copyRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, Stile.px(36)));
+        content.add(copyRow);
+        content.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
 
         JPanel ready = new JPanel(new BorderLayout());
         ready.setBackground(Stile.VERDE_SOFT);
@@ -224,18 +216,20 @@ public final class Operatore extends JPanel {
                 BorderFactory.createLineBorder(Stile.VERDE_BORDO),
                 BorderFactory.createEmptyBorder(
                         Stile.px(10), Stile.px(12), Stile.px(10), Stile.px(12))));
+        ready.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ready.setMaximumSize(new Dimension(Integer.MAX_VALUE, Stile.px(64)));
         state.setFont(Stile.forte());
         state.setForeground(Stile.VERDE);
         detail.setFont(Stile.piccolo());
         detail.setForeground(Stile.SUB0);
         ready.add(state, BorderLayout.NORTH);
         ready.add(detail, BorderLayout.SOUTH);
-        bottom.add(ready);
-        bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
+        content.add(ready);
+        content.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
 
         print.setAlignmentX(Component.LEFT_ALIGNMENT);
         print.setMaximumSize(new Dimension(Integer.MAX_VALUE, Stile.px(44)));
-        bottom.add(print);
+        content.add(print);
 
         Bottone export = Bottone.piatto("Esporta…");
         export.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -244,10 +238,17 @@ public final class Operatore extends JPanel {
             Integer count = copyCount();
             if (count != null) Finestre.esporta(this, label, qr, count.intValue());
         });
-        bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(4)));
-        bottom.add(export);
-        column.add(bottom, BorderLayout.SOUTH);
-        return column;
+        content.add(javax.swing.Box.createVerticalStrut(Stile.px(4)));
+        content.add(export);
+
+        JScrollPane scroll = new JScrollPane(content,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setName("run-fields");
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getViewport().setBackground(Stile.BASE);
+        scroll.getVerticalScrollBar().setUnitIncrement(Stile.px(18));
+        return scroll;
     }
 
     private javax.swing.JComponent dataCard(final Campo field) {
