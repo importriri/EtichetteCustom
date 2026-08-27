@@ -73,7 +73,7 @@ public final class ProvaInterfaccia {
         for (Component component : allInspector) {
             if (component instanceof JComboBox) comboCount++;
         }
-        check("secondary content choices stay hidden by default", comboCount == 0);
+        check("only the relevant progressive choice is visible by default", comboCount == 1);
         check("shared content is summarized without a picker",
                 containsLabel(allInspector, "🔗"));
 
