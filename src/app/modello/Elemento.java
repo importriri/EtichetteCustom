@@ -24,6 +24,10 @@ public class Elemento {
     private int massimoRighe = 3;
     private Correzione correzione = Correzione.M;
 
+    /* Presentazione del testo: il dato sorgente resta sempre intatto. */
+    private int allineamento; // 0 sinistra, 1 centro, 2 destra
+    private boolean mostraSeparatori = true;
+
     public Elemento(String nome, Tipo tipo, String campo,
                     double x, double y, double larghezza) {
         this.nome = nome;
@@ -63,7 +67,7 @@ public class Elemento {
 
     public int rotazione() { return rotazione; }
 
-    /** Accetta solo i quattro quarti di giro: mezze rotazioni non servono a nessuno. */
+    /** Accetta solo i quattro quarti di giro. */
     public void rotazione(int gradi) {
         int g = ((gradi % 360) + 360) % 360;
         if (g != 0 && g != 90 && g != 180 && g != 270) {
@@ -73,13 +77,16 @@ public class Elemento {
     }
 
     public Correzione correzione() { return correzione; }
-
-    public void correzione(Correzione c) {
-        correzione = c == null ? Correzione.M : c;
-    }
+    public void correzione(Correzione c) { correzione = c == null ? Correzione.M : c; }
 
     public int massimoRighe() { return massimoRighe; }
-    public void massimoRighe(int v) { massimoRighe = Math.max(1, v); }
+    public void massimoRighe(int v) { massimoRighe = Math.max(1, Math.min(3, v)); }
+
+    public int allineamento() { return allineamento; }
+    public void allineamento(int v) { allineamento = Math.max(0, Math.min(2, v)); }
+
+    public boolean mostraSeparatori() { return mostraSeparatori; }
+    public void mostraSeparatori(boolean v) { mostraSeparatori = v; }
 
     public Elemento corpo(double v, boolean bold) {
         corpo(v);
@@ -92,6 +99,13 @@ public class Elemento {
         return this;
     }
 
+    public Elemento presenta(int allineamento, boolean separatori, int righe) {
+        allineamento(allineamento);
+        mostraSeparatori(separatori);
+        massimoRighe(righe);
+        return this;
+    }
+
     /** Copia indipendente: nessun riferimento condiviso con l'originale. */
     public Elemento copia() {
         Elemento c = new Elemento(nome, tipo, campo, x, y, larghezza);
@@ -101,6 +115,8 @@ public class Elemento {
         c.rotazione(rotazione);
         c.massimoRighe(massimoRighe);
         c.correzione(correzione);
+        c.allineamento(allineamento);
+        c.mostraSeparatori(mostraSeparatori);
         return c;
     }
 
