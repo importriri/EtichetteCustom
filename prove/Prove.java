@@ -1,6 +1,6 @@
 package prove;
 
-/** Il minimo indispensabile per provare senza tirarsi dentro una libreria. */
+/** Minimal test harness with no external dependency. */
 public final class Prove {
 
     private static int fatte;
