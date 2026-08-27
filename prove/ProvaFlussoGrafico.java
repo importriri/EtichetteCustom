@@ -27,6 +27,7 @@ import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -112,6 +113,19 @@ public final class ProvaFlussoGrafico {
                 hasTextFieldValue(operatorComponents, "12"));
         check("print button fits without truncation",
                 buttonFits(findButton(operatorComponents, "Stampa 12 etichette")));
+
+        JScrollPane runFields = findNamedScroll(operatorComponents, "run-fields");
+        check("run fields never expose a horizontal scrollbar",
+                runFields != null && !runFields.getHorizontalScrollBar().isVisible());
+        check("run field column tracks the available viewport width",
+                runFields != null
+                        && runFields.getViewport().getView() != null
+                        && runFields.getViewport().getView().getWidth()
+                                <= runFields.getViewport().getWidth() + 1);
+        Component range = findNamedComponent(operatorComponents, "sequence-range");
+        check("sequence range stays inside the run field viewport",
+                runFields != null && range != null
+                        && range.getWidth() <= runFields.getViewport().getWidth());
     }
 
     private static void selectFirstText(Banco editor, Etichetta label) throws Exception {
@@ -203,6 +217,18 @@ public final class ProvaFlussoGrafico {
             }
         }
         return null;
+    }
+
+    private static Component findNamedComponent(List<Component> all, String name) {
+        for (Component component : all) {
+            if (name.equals(component.getName())) return component;
+        }
+        return null;
+    }
+
+    private static JScrollPane findNamedScroll(List<Component> all, String name) {
+        Component component = findNamedComponent(all, name);
+        return component instanceof JScrollPane ? (JScrollPane) component : null;
     }
 
     private static JComboBox<?> findNamedCombo(List<Component> all, String name) {
