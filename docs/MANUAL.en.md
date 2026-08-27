@@ -2,49 +2,53 @@
 
 ## 1. Gallery
 
-Choose a label from its real preview. A normal click opens **Operator mode**.
-Use **Edit layout** only when the physical design must change.
+Choose a label from its rendered preview. A normal click opens print
+preparation. Use **Edit layout** only when the physical design must change.
 
-A fresh installation starts with one **Example** label. From then on the gallery
-shows only labels that were created or saved by the user.
+A fresh installation starts with one editable **Example** label. From then on
+the gallery shows only labels that were created or saved by the user.
 
-The search box filters saved labels by name. All application settings are
-collected under **Settings…**.
+The gallery stays intentionally quiet: search appears only when there are enough
+labels to need it, and recent print history appears only after a run has been
+recorded. Create a label with **New label**. Rename, duplicate and delete actions
+are available from the label card menu.
 
 ## 2. Prepare a run
 
-The screen shows one card for each data source actually used by the label. If a
-QR code and its readable text use the same code, the value is entered once.
+This screen contains only choices that belong to the current run.
 
-Set the copy count. Each sequential source shows the exact first and last code
-that will be produced.
+Fixed values are not repeated here. A sequential source shows its starting code
+and the exact outgoing range. A value configured as **Ask when printing** gets an
+input field for this run.
 
-One label may contain several independent sequences. Each keeps its own prefix,
-numeric suffix and counter.
+Set the copy count, check the preview and range, then press **Print**.
+Sequence-window configuration stays in the editor instead of being shown before
+every print.
 
 ## 3. Print
 
-Check the summary and press **Print**. The real printer queue is selected in the
-operating-system print dialog.
+The real printer queue is selected in the operating-system print dialog.
 
 Cancelling that dialog consumes **no** sequence number. Counters advance only
-after a successful print job.
+after a successful print job. The updated label state is then saved and the run
+is appended to the print log.
 
 ## 4. Edit layout
 
-The editor is designed around direct manipulation:
+The editor opens with no element selected. The right-hand inspector stays quiet
+until you click something on the label or in the element list.
 
-1. click an element to select it;
+The normal workflow is:
+
+1. click an element;
 2. drag it to move it;
 3. drag a blue corner handle to resize it;
-4. use the right-hand inspector only for choices that cannot be made directly
+4. use the contextual inspector only for choices that cannot be made directly
    on the label.
 
-QR elements remain square while resizing. The grid is a visual reference and
-the editor keeps geometry inside the label whenever possible.
-
-X/Y/width and text-size measurements are hidden during normal work. Open
-**Precise measurements** only when an exact millimetre value is required.
+QR elements stay square while resizing. Exact X/Y/size values remain behind
+**Precise measurements**. Label orientation and advanced data tools are kept in
+the top **More** menu instead of occupying permanent space.
 
 Main shortcuts:
 
@@ -56,54 +60,64 @@ Main shortcuts:
 
 ## 5. Readable text
 
-Selecting a text element exposes the everyday choices directly:
+Selecting text exposes only the common choices:
 
-- left, centre or right alignment;
-- automatic layout or 1, 2 or 3 lines;
-- 0°, 90°, 180° or 270° rotation;
-- **Show dots and symbols**.
+- one alignment chooser: left, centre or right;
+- one line chooser: automatic, 1, 2 or 3 lines;
+- **Show dots and symbols**;
+- one **Rotate 90°** action.
 
-Automatic layout tries to preserve a large readable text size and prefers
-natural separators when wrapping a long code. It must never silently drop
-characters.
+Click **Rotate 90°** repeatedly to cycle through 0°, 90°, 180° and 270°.
+Automatic layout prefers natural separators when wrapping a long code and must
+never silently drop characters.
 
-**Show dots and symbols** affects presentation only. QR and barcode content
-always retains the exact source value. For example a QR may contain
-`210150.022_02-01.262350009` while its human-readable text is presented without
-selected separators.
+**Show dots and symbols** changes presentation only. QR and barcode payloads
+always retain the exact source value.
 
-## 6. Reuse one code across elements
+## 6. Content and shared values
 
-QR, readable text and barcode elements can use one shared code. Use
-**Use the same code as** to select data already used by another element.
+Every QR, barcode or text element reads from a content source. The editor avoids
+exposing internal source identifiers.
 
-If only the selected element needs a different value, press **Use a different
-code**. The user does not need to manage internal field identifiers; the UI
-shows readable element/data names instead.
+The current behavior is summarized in plain language:
+
+- **Does not change** — stored with the label;
+- **Increases automatically** — advances a numeric window;
+- **Asked when printing** — entered for each run.
+
+Open **How it changes…** only when that behavior or the sequence window needs to
+change.
+
+When several elements use the same value, the inspector shows one compact link
+such as **QR + Text**. Open it only when the selected element must become
+independent. An independent element can also choose **Use existing content…**
+to reuse a value already present on the label.
 
 ## 7. QR and barcode
 
-Quality indicators flag codes that are too small or have insufficient quiet
-space. If a QR is too small, enlarge it directly with a corner handle. A red
-error indicates invalid content.
+QR and barcode cards show a plain-language health result first. QR correction
+level and technical measurements stay behind **QR options** or **Precise
+measurements**.
+
+If a QR is too small, enlarge it with a corner handle. If it is too close to an
+edge, move it inward. A content error is shown directly in the inspector.
 
 Final acceptance should always include a scan test on the real stock and
 printer.
 
 ## 8. Windows and UI scaling
 
-The editor uses its own consistent controls and grid instead of relying on
-platform-specific spinner rendering. Project CI exercises the editor natively on
-Windows at several UI scales, including profiles corresponding to common 125%,
-150% and 200% display settings.
+The primary workflow avoids `JSpinner` and uses application-rendered geometry.
+CI exercises the first-run gallery, editor and print flow natively on Windows at
+several UI scales corresponding to common 100%, 125%, 150% and 200% profiles.
 
-Changing Windows display scaling does not change the physical label geometry:
+Changing Windows display scaling does not change physical label geometry:
 printing and export continue to use millimetres.
 
 ## 9. Settings
 
-**General** contains label and log folders. **Printer** stores the name used in
-the log and the DPI used by readability checks.
+**General** contains label and log folders. **Printer** stores printer metadata
+and the DPI used by readability checks.
 
 **Manual** contains this guide in Italian and English. **Info** links to the
 GitHub repository.
