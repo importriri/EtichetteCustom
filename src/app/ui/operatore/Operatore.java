@@ -33,97 +33,536 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSpinner;
 import javax.swing.JTextField;
-import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 
-/** La modalità operatore prepara il giro senza esporre la modifica del layout. */
+/** Protected print-preparation view with only run-time choices exposed. */
 public final class Operatore extends JPanel {
-    private final Etichetta eti;
+    private final Etichetta label;
     private final SorgenteQr qr;
-    private final Impostazioni imp;
-    private final Archivio archivio;
-    private final Registro registro;
-    private final Runnable indietro;
-    private final Runnable modifica;
-    private final Anteprima anteprima;
-    private final JSpinner copie=new JSpinner(new SpinnerNumberModel(12,1,100000,1));
-    private final JLabel stato=new JLabel("Pronto per la stampa");
-    private final JLabel dettaglio=new JLabel(" ");
-    private final JLabel esito=new JLabel(" ");
-    private final Bottone stampa=Bottone.primario("Stampa 12 etichette");
-    private final Map<Campo,JTextField> valori=new LinkedHashMap<Campo,JTextField>();
-    private final Map<Campo,JSpinner> cifre=new LinkedHashMap<Campo,JSpinner>();
-    private final Map<Campo,CodiceView[]> intervalli=new LinkedHashMap<Campo,CodiceView[]>();
-    private boolean aggiornando;
+    private final Impostazioni settings;
+    private final Archivio archive;
+    private final Registro log;
+    private final Runnable back;
+    private final Runnable edit;
+    private final Preview preview;
 
-    public Operatore(Etichetta eti,SorgenteQr qr,Impostazioni imp,Archivio archivio,Registro registro,Runnable indietro,Runnable modifica){
-        super(new BorderLayout()); this.eti=eti;this.qr=qr;this.imp=imp;this.archivio=archivio;this.registro=registro;this.indietro=indietro;this.modifica=modifica;
-        setBackground(Stile.BASE); anteprima=new Anteprima(); add(testata(),BorderLayout.NORTH); add(corpo(),BorderLayout.CENTER); add(barraStato(),BorderLayout.SOUTH);
-        copie.setFont(Stile.normale()); copie.addChangeListener(e->{if(!aggiornando)aggiorna();});
-        stampa.addActionListener(e->mandaInStampa()); aggiorna();
+    private final JTextField copies = new JTextField("12", 6);
+    private final JLabel state = new JLabel("Pronto per la stampa");
+    private final JLabel detail = new JLabel(" ");
+    private final JLabel result = new JLabel(" ");
+    private final Bottone print = Bottone.primario("Stampa 12 etichette");
+
+    private final Map<Campo, JTextField> values = new LinkedHashMap<Campo, JTextField>();
+    private final Map<Campo, JComboBox<Integer>> digits = new LinkedHashMap<Campo, JComboBox<Integer>>();
+    private final Map<Campo, CodiceView[]> ranges = new LinkedHashMap<Campo, CodiceView[]>();
+    private boolean updating;
+
+    public Operatore(Etichetta label, SorgenteQr qr, Impostazioni settings,
+                     Archivio archive, Registro log, Runnable back, Runnable edit) {
+        super(new BorderLayout());
+        this.label = label;
+        this.qr = qr;
+        this.settings = settings;
+        this.archive = archive;
+        this.log = log;
+        this.back = back;
+        this.edit = edit;
+
+        setBackground(Stile.BASE);
+        preview = new Preview();
+        add(header(), BorderLayout.NORTH);
+        add(body(), BorderLayout.CENTER);
+        add(statusBar(), BorderLayout.SOUTH);
+
+        copies.setFont(Stile.normale());
+        copies.setHorizontalAlignment(JTextField.RIGHT);
+        copies.setPreferredSize(new Dimension(Stile.px(92), Stile.px(36)));
+        copies.addActionListener(e -> updateState());
+        copies.addFocusListener(new FocusAdapter() {
+            @Override public void focusLost(FocusEvent event) { updateState(); }
+        });
+
+        print.addActionListener(e -> sendToPrinter());
+        updateState();
     }
 
-    public void salva(){ try{archivio.salva(eti);}catch(Exception ex){esito.setText("Salvataggio non riuscito: "+ex.getMessage());esito.setForeground(Stile.ROSSO);} }
-
-    private javax.swing.JComponent testata(){
-        JPanel p=new JPanel(new BorderLayout());p.setBackground(Color.WHITE);p.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0,0,1,0,Stile.S0),BorderFactory.createEmptyBorder(Stile.px(12),Stile.px(18),Stile.px(12),Stile.px(18))));
-        JPanel sx=new JPanel(new FlowLayout(FlowLayout.LEFT,Stile.px(12),0));sx.setOpaque(false);Bottone back=Bottone.piatto("‹  Vetrina");back.addActionListener(e->indietro.run());sx.add(back);
-        JPanel nome=new JPanel();nome.setOpaque(false);nome.setLayout(new BoxLayout(nome,BoxLayout.Y_AXIS));JLabel t=new JLabel(eti.nome());t.setFont(Stile.titolo());t.setForeground(Stile.TESTO);JLabel m=new JLabel(num(eti.larghezza())+" × "+num(eti.altezza())+" mm");m.setFont(Stile.piccolo());m.setForeground(Stile.OV1);nome.add(t);nome.add(m);sx.add(nome);p.add(sx,BorderLayout.WEST);
-        JPanel dx=new JPanel(new FlowLayout(FlowLayout.RIGHT,Stile.px(7),0));dx.setOpaque(false);Bottone settings=Bottone.piatto("⚙  Impostazioni");settings.addActionListener(e->Finestre.impostazioni(this,imp));Bottone edit=Bottone.normale("Modifica layout");edit.addActionListener(e->modifica.run());dx.add(settings);dx.add(edit);p.add(dx,BorderLayout.EAST);return p;
-    }
-
-    private javax.swing.JComponent corpo(){
-        JPanel p=new JPanel(new GridBagLayout());p.setBackground(Stile.BASE);p.setBorder(BorderFactory.createEmptyBorder(Stile.px(18),Stile.px(18),Stile.px(18),Stile.px(18)));
-        GridBagConstraints a=new GridBagConstraints();a.gridx=0;a.gridy=0;a.weightx=.62;a.weighty=1;a.fill=GridBagConstraints.BOTH;a.insets=new Insets(0,0,0,Stile.px(18));
-        JPanel previewWrap=new JPanel(new BorderLayout());previewWrap.setBackground(Stile.BANCO);previewWrap.setBorder(BorderFactory.createLineBorder(Stile.S0));previewWrap.add(anteprima,BorderLayout.CENTER);p.add(previewWrap,a);
-        GridBagConstraints b=new GridBagConstraints();b.gridx=1;b.gridy=0;b.weightx=.38;b.weighty=1;b.fill=GridBagConstraints.BOTH;p.add(controlli(),b);return p;
-    }
-
-    private javax.swing.JComponent controlli(){
-        JPanel col=new JPanel();col.setBackground(Stile.BASE);col.setLayout(new BorderLayout());
-        JPanel header=new JPanel();header.setOpaque(false);header.setLayout(new BoxLayout(header,BoxLayout.Y_AXIS));JLabel t=new JLabel("Prepara il giro");t.setFont(Stile.titolo());t.setForeground(Stile.TESTO);t.setAlignmentX(Component.LEFT_ALIGNMENT);header.add(t);JLabel sub=new JLabel("Controlla i dati. Il layout resta protetto.");sub.setFont(Stile.piccolo());sub.setForeground(Stile.SUB0);sub.setAlignmentX(Component.LEFT_ALIGNMENT);header.add(sub);header.setBorder(BorderFactory.createEmptyBorder(0,0,Stile.px(12),0));col.add(header,BorderLayout.NORTH);
-        JPanel lista=new JPanel();lista.setOpaque(false);lista.setLayout(new BoxLayout(lista,BoxLayout.Y_AXIS));valori.clear();cifre.clear();intervalli.clear();for(Campo c:eti.campiUsati()){lista.add(schedaDato(c));lista.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));}
-        JScrollPane sp=new JScrollPane(lista);sp.setBorder(BorderFactory.createEmptyBorder());sp.getViewport().setBackground(Stile.BASE);sp.getVerticalScrollBar().setUnitIncrement(Stile.px(18));col.add(sp,BorderLayout.CENTER);
-        JPanel bottom=new JPanel();bottom.setOpaque(false);bottom.setLayout(new BoxLayout(bottom,BoxLayout.Y_AXIS));bottom.setBorder(BorderFactory.createEmptyBorder(Stile.px(12),0,0,0));bottom.add(campo("Copie",copie));bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
-        JPanel pre=new JPanel(new BorderLayout());pre.setBackground(Stile.VERDE_SOFT);pre.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Stile.VERDE_BORDO),BorderFactory.createEmptyBorder(Stile.px(10),Stile.px(12),Stile.px(10),Stile.px(12))));stato.setFont(Stile.forte());stato.setForeground(Stile.VERDE);dettaglio.setFont(Stile.piccolo());dettaglio.setForeground(Stile.SUB0);pre.add(stato,BorderLayout.NORTH);pre.add(dettaglio,BorderLayout.SOUTH);bottom.add(pre);bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));stampa.setAlignmentX(Component.LEFT_ALIGNMENT);stampa.setMaximumSize(new Dimension(Integer.MAX_VALUE,Stile.px(42)));bottom.add(stampa);Bottone exp=Bottone.normale("Esporta…");exp.setAlignmentX(Component.LEFT_ALIGNMENT);exp.setMaximumSize(new Dimension(Integer.MAX_VALUE,Stile.px(36)));exp.addActionListener(e->Finestre.esporta(this,eti,qr,quanteCopie()));bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(6)));bottom.add(exp);col.add(bottom,BorderLayout.SOUTH);return col;
-    }
-
-    private javax.swing.JComponent schedaDato(final Campo c){
-        JPanel card=new JPanel(new GridBagLayout());card.setBackground(Color.WHITE);Color accent=colore(c);card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0,Stile.px(3),0,0,accent),BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Stile.S0),BorderFactory.createEmptyBorder(Stile.px(10),Stile.px(12),Stile.px(10),Stile.px(12)))));
-        GridBagConstraints x=new GridBagConstraints();x.gridx=0;x.gridy=0;x.gridwidth=2;x.weightx=1;x.fill=GridBagConstraints.HORIZONTAL;x.anchor=GridBagConstraints.WEST;JLabel title=new JLabel(NomiDati.nome(eti,c));title.setFont(Stile.forte());title.setForeground(Stile.TESTO);card.add(title,x);
-        x.gridy++;JLabel meta=new JLabel(NomiDati.comportamento(c)+"  ·  "+NomiDati.tipoUso(eti,c)+"  ·  "+NomiDati.uso(eti,c));meta.setFont(Stile.minuscolo());meta.setForeground(Stile.OV1);x.insets=new Insets(2,0,Stile.px(8),0);card.add(meta,x);
-        x.insets=new Insets(0,0,0,0);x.gridwidth=1;x.gridy++;x.gridx=0;x.weightx=.35;JLabel lab=new JLabel(c.comportamento()==Comportamento.PROGRESSIVO?"Codice iniziale":"Valore");lab.setFont(Stile.piccolo());lab.setForeground(Stile.SUB0);card.add(lab,x);
-        JTextField v=new JTextField(c.serie()!=null?c.serie().codice(c.serie().prossimo()):c.valore());v.setFont(Stile.normale());valori.put(c,v);x.gridx=1;x.weightx=.65;x.fill=GridBagConstraints.HORIZONTAL;card.add(v,x);v.addActionListener(e->{cambiaDati();aggiorna();});v.addFocusListener(new FocusAdapter(){@Override public void focusLost(FocusEvent e){cambiaDati();aggiorna();}});
-        if(c.comportamento()==Comportamento.PROGRESSIVO){
-            x.gridy++;x.gridx=0;x.weightx=.35;x.fill=GridBagConstraints.NONE;JLabel cl=new JLabel("Cifre mobili");cl.setFont(Stile.piccolo());cl.setForeground(Stile.SUB0);card.add(cl,x);
-            int n=c.serie()==null?3:c.serie().cifre();JSpinner cs=new JSpinner(new SpinnerNumberModel(n,1,9,1));cs.setFont(Stile.normale());cifre.put(c,cs);x.gridx=1;x.fill=GridBagConstraints.HORIZONTAL;card.add(cs,x);cs.addChangeListener(e->{if(!aggiornando){cambiaDati();aggiorna();}});
-            JPanel range=new JPanel(new FlowLayout(FlowLayout.LEFT,Stile.px(5),0));range.setOpaque(false);CodiceView da=new CodiceView("","");CodiceView a=new CodiceView("","");da.corpo(11);a.corpo(11);intervalli.put(c,new CodiceView[]{da,a});range.add(da);JLabel arrow=new JLabel("→");arrow.setForeground(Stile.OV1);range.add(arrow);range.add(a);x.gridy++;x.gridx=0;x.gridwidth=2;x.weightx=1;x.fill=GridBagConstraints.HORIZONTAL;x.insets=new Insets(Stile.px(7),0,0,0);card.add(range,x);
+    public void salva() {
+        try {
+            archive.salva(label);
+        } catch (Exception ex) {
+            result.setText("Salvataggio non riuscito: " + ex.getMessage());
+            result.setForeground(Stile.ROSSO);
         }
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE,card.getPreferredSize().height));return card;
     }
 
-    private void cambiaDati(){ if(aggiornando)return; for(Map.Entry<Campo,JTextField> e:valori.entrySet()){Campo c=e.getKey();String v=e.getValue().getText().trim();try{if(c.comportamento()==Comportamento.PROGRESSIVO){JSpinner sp=cifre.get(c);int n=sp==null?(c.serie()==null?3:c.serie().cifre()):((Number)sp.getValue()).intValue();c.serie(new Serie(v,n));}else c.valore(v);}catch(RuntimeException ex){esito.setText(NomiDati.nome(eti,c)+": "+ex.getMessage());esito.setForeground(Stile.ROSSO);}} anteprima.repaint(); }
-    private int quanteCopie(){return ((Number)copie.getValue()).intValue();}
+    private javax.swing.JComponent header() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, Stile.S0),
+                BorderFactory.createEmptyBorder(
+                        Stile.px(12), Stile.px(18), Stile.px(12), Stile.px(18))));
 
-    private void aggiorna(){ if(aggiornando)return;aggiornando=true;try{cambiaDati();int n=quanteCopie();stampa.setText("Stampa "+n+(n==1?" etichetta":" etichette"));String errore=null;try{eti.validaGiro(n);}catch(RuntimeException ex){errore=ex.getMessage();}
-        for(Map.Entry<Campo,CodiceView[]> e:intervalli.entrySet()){Campo c=e.getKey();if(c.serie()==null)continue;Serie s=c.serie();try{String[] g=s.giro(n);e.getValue()[0].testo(s.prefisso(),s.finestra(s.prossimo()));String last=g[g.length-1];e.getValue()[1].testo(s.prefisso(),last.substring(Math.min(s.prefisso().length(),last.length())));}catch(RuntimeException ex){errore=ex.getMessage();}}
-        if(errore==null){stato.setText("✓  Pronto per la stampa");stato.setForeground(Stile.VERDE);dettaglio.setText(eti.campiUsati().size()+" dati · "+eti.progressivi().size()+" progressivi · formato "+num(eti.larghezza())+" × "+num(eti.altezza())+" mm");stampa.setEnabled(true);}else{stato.setText("⚠  Controlla i dati");stato.setForeground(Stile.PESCA);dettaglio.setText(errore);stampa.setEnabled(false);}anteprima.repaint();}finally{aggiornando=false;}}
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(12), 0));
+        left.setOpaque(false);
+        Bottone backButton = Bottone.piatto("‹  Vetrina");
+        backButton.addActionListener(e -> back.run());
+        left.add(backButton);
 
-    private void mandaInStampa(){cambiaDati();int n=quanteCopie();try{eti.validaGiro(n);String[] codici=eti.codiciGiro(n);StampaGiro job=new StampaGiro(eti,qr,n);if(!job.manda(eti.nome())){esito.setText("Stampa annullata · nessun progressivo avanzato");esito.setForeground(Stile.SUB0);return;}eti.consumaProgressivi(n);archivio.salva(eti);registro.annota(eti,codici,imp.stampante());sincronizzaCampiDaModello();aggiorna();esito.setText("✓ Giro stampato e registrato");esito.setForeground(Stile.VERDE);}catch(PrinterException ex){esito.setText("Stampante: "+ex.getMessage());esito.setForeground(Stile.ROSSO);}catch(Exception ex){esito.setText("Stampa non completata: "+ex.getMessage());esito.setForeground(Stile.ROSSO);}}
-    private void sincronizzaCampiDaModello(){aggiornando=true;try{for(Map.Entry<Campo,JTextField> e:valori.entrySet())e.getValue().setText(e.getKey().serie()!=null?e.getKey().serie().codice(e.getKey().serie().prossimo()):e.getKey().valore());}finally{aggiornando=false;}}
+        JPanel name = new JPanel();
+        name.setOpaque(false);
+        name.setLayout(new BoxLayout(name, BoxLayout.Y_AXIS));
+        JLabel title = new JLabel(label.nome());
+        title.setFont(Stile.titolo());
+        title.setForeground(Stile.TESTO);
+        JLabel format = new JLabel(num(label.larghezza()) + " × " + num(label.altezza()) + " mm");
+        format.setFont(Stile.piccolo());
+        format.setForeground(Stile.OV1);
+        name.add(title);
+        name.add(format);
+        left.add(name);
+        panel.add(left, BorderLayout.WEST);
 
-    private javax.swing.JComponent campo(String nome,javax.swing.JComponent c){JPanel p=new JPanel(new BorderLayout(Stile.px(10),0));p.setOpaque(false);JLabel l=new JLabel(nome);l.setFont(Stile.piccolo());l.setForeground(Stile.SUB0);p.add(l,BorderLayout.WEST);p.add(c,BorderLayout.CENTER);p.setMaximumSize(new Dimension(Integer.MAX_VALUE,Stile.px(36)));return p;}
-    private javax.swing.JComponent barraStato(){JPanel p=new JPanel(new BorderLayout());p.setBackground(Color.WHITE);p.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1,0,0,0,Stile.S0),BorderFactory.createEmptyBorder(Stile.px(7),Stile.px(18),Stile.px(7),Stile.px(18))));JLabel mode=new JLabel("MODALITA' OPERATORE  ·  layout protetto");mode.setFont(Stile.minuscolo());mode.setForeground(Stile.OV1);esito.setFont(Stile.piccolo());esito.setHorizontalAlignment(SwingConstants.RIGHT);p.add(mode,BorderLayout.WEST);p.add(esito,BorderLayout.EAST);return p;}
-    private static Color colore(Campo c){if(c.comportamento()==Comportamento.PROGRESSIVO)return Stile.PESCA;if(c.comportamento()==Comportamento.CHIESTO)return Stile.LAVANDA;return Stile.CELESTE;}
-    private static String num(double v){return String.valueOf(Math.round(v*10)/10.0).replace(".0","").replace('.',',');}
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, Stile.px(7), 0));
+        right.setOpaque(false);
+        Bottone settingsButton = Bottone.piatto("⚙  Impostazioni");
+        settingsButton.addActionListener(e -> Finestre.impostazioni(this, settings));
+        Bottone editButton = Bottone.normale("Modifica layout");
+        editButton.addActionListener(e -> edit.run());
+        right.add(settingsButton);
+        right.add(editButton);
+        panel.add(right, BorderLayout.EAST);
+        return panel;
+    }
 
-    private final class Anteprima extends javax.swing.JComponent{
-        @Override public Dimension getPreferredSize(){return new Dimension(Stile.px(620),Stile.px(480));}
-        @Override protected void paintComponent(Graphics g){super.paintComponent(g);Graphics2D g2=Stile.liscio(g);try{g2.setColor(Stile.BANCO);g2.fillRect(0,0,getWidth(),getHeight());double sx=(getWidth()-Stile.px(80))/eti.larghezza();double sy=(getHeight()-Stile.px(90))/eti.altezza();double mm=Math.max(.1,Math.min(sx,sy));int w=(int)Math.round(eti.larghezza()*mm),h=(int)Math.round(eti.altezza()*mm);int x=(getWidth()-w)/2,y=(getHeight()-h)/2;g2.setColor(new Color(0,0,0,40));g2.fillRect(x+Stile.px(5),y+Stile.px(6),w,h);g2.setColor(Color.WHITE);g2.fillRect(x,y,w,h);g2.setColor(Stile.S1);g2.drawRect(x,y,w,h);g2.translate(x,y);Disegno.disegna(g2,eti,mm,qr,0);}finally{g2.dispose();}}
+    private javax.swing.JComponent body() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Stile.BASE);
+        panel.setBorder(BorderFactory.createEmptyBorder(
+                Stile.px(18), Stile.px(18), Stile.px(18), Stile.px(18)));
+
+        GridBagConstraints left = new GridBagConstraints();
+        left.gridx = 0;
+        left.gridy = 0;
+        left.weightx = .68;
+        left.weighty = 1;
+        left.fill = GridBagConstraints.BOTH;
+        left.insets = new Insets(0, 0, 0, Stile.px(20));
+        JPanel previewWrap = new JPanel(new BorderLayout());
+        previewWrap.setBackground(Stile.BANCO);
+        previewWrap.setBorder(BorderFactory.createLineBorder(Stile.S0));
+        previewWrap.add(preview, BorderLayout.CENTER);
+        panel.add(previewWrap, left);
+
+        GridBagConstraints right = new GridBagConstraints();
+        right.gridx = 1;
+        right.gridy = 0;
+        right.weightx = .32;
+        right.weighty = 1;
+        right.fill = GridBagConstraints.BOTH;
+        panel.add(controls(), right);
+        return panel;
+    }
+
+    private javax.swing.JComponent controls() {
+        JPanel column = new JPanel(new BorderLayout());
+        column.setBackground(Stile.BASE);
+
+        JPanel heading = new JPanel();
+        heading.setOpaque(false);
+        heading.setLayout(new BoxLayout(heading, BoxLayout.Y_AXIS));
+        JLabel title = new JLabel("Prepara la stampa");
+        title.setFont(Stile.titolo());
+        title.setForeground(Stile.TESTO);
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        heading.add(title);
+        JLabel subtitle = new JLabel("Inserisci solo i dati di questo giro.");
+        subtitle.setFont(Stile.piccolo());
+        subtitle.setForeground(Stile.SUB0);
+        subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        heading.add(subtitle);
+        heading.setBorder(BorderFactory.createEmptyBorder(0, 0, Stile.px(12), 0));
+        column.add(heading, BorderLayout.NORTH);
+
+        JPanel list = new JPanel();
+        list.setOpaque(false);
+        list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+        values.clear();
+        digits.clear();
+        ranges.clear();
+
+        int editableCount = 0;
+        for (Campo field : label.campiUsati()) {
+            if (field.comportamento() == Comportamento.FISSO) continue;
+            list.add(dataCard(field));
+            list.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
+            editableCount++;
+        }
+        if (editableCount == 0) {
+            JLabel none = new JLabel("Nessun dato da inserire per questa etichetta.");
+            none.setFont(Stile.piccolo());
+            none.setForeground(Stile.SUB0);
+            none.setAlignmentX(Component.LEFT_ALIGNMENT);
+            list.add(none);
+        }
+
+        JScrollPane scroll = new JScrollPane(list);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getViewport().setBackground(Stile.BASE);
+        scroll.getVerticalScrollBar().setUnitIncrement(Stile.px(18));
+        column.add(scroll, BorderLayout.CENTER);
+
+        JPanel bottom = new JPanel();
+        bottom.setOpaque(false);
+        bottom.setLayout(new BoxLayout(bottom, BoxLayout.Y_AXIS));
+        bottom.setBorder(BorderFactory.createEmptyBorder(Stile.px(12), 0, 0, 0));
+        bottom.add(labeled("Copie", copies));
+        bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
+
+        JPanel ready = new JPanel(new BorderLayout());
+        ready.setBackground(Stile.VERDE_SOFT);
+        ready.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Stile.VERDE_BORDO),
+                BorderFactory.createEmptyBorder(
+                        Stile.px(10), Stile.px(12), Stile.px(10), Stile.px(12))));
+        state.setFont(Stile.forte());
+        state.setForeground(Stile.VERDE);
+        detail.setFont(Stile.piccolo());
+        detail.setForeground(Stile.SUB0);
+        ready.add(state, BorderLayout.NORTH);
+        ready.add(detail, BorderLayout.SOUTH);
+        bottom.add(ready);
+        bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(10)));
+
+        print.setAlignmentX(Component.LEFT_ALIGNMENT);
+        print.setMaximumSize(new Dimension(Integer.MAX_VALUE, Stile.px(44)));
+        bottom.add(print);
+
+        Bottone export = Bottone.normale("Esporta…");
+        export.setAlignmentX(Component.LEFT_ALIGNMENT);
+        export.setMaximumSize(new Dimension(Integer.MAX_VALUE, Stile.px(38)));
+        export.addActionListener(e -> {
+            Integer count = copyCount();
+            if (count != null) Finestre.esporta(this, label, qr, count.intValue());
+        });
+        bottom.add(javax.swing.Box.createVerticalStrut(Stile.px(6)));
+        bottom.add(export);
+        column.add(bottom, BorderLayout.SOUTH);
+        return column;
+    }
+
+    private javax.swing.JComponent dataCard(final Campo field) {
+        JPanel card = new JPanel(new GridBagLayout());
+        card.setBackground(Color.WHITE);
+        Color accent = color(field);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, Stile.px(3), 0, 0, accent),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Stile.S0),
+                        BorderFactory.createEmptyBorder(
+                                Stile.px(11), Stile.px(12), Stile.px(11), Stile.px(12)))));
+
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = 0;
+        c.gridy = 0;
+        c.weightx = 1;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.anchor = GridBagConstraints.WEST;
+        JLabel title = new JLabel(NomiDati.nome(label, field));
+        title.setFont(Stile.forte());
+        title.setForeground(Stile.TESTO);
+        card.add(title, c);
+
+        c.gridy++;
+        c.insets = new Insets(Stile.px(2), 0, Stile.px(8), 0);
+        JLabel mode = new JLabel(field.comportamento() == Comportamento.PROGRESSIVO
+                ? "Aumenta automaticamente"
+                : "Chiesto prima della stampa");
+        mode.setFont(Stile.minuscolo());
+        mode.setForeground(accent);
+        card.add(mode, c);
+
+        c.gridy++;
+        c.insets = new Insets(0, 0, Stile.px(4), 0);
+        JLabel valueLabel = new JLabel(field.comportamento() == Comportamento.PROGRESSIVO
+                ? "Codice iniziale" : "Valore");
+        valueLabel.setFont(Stile.piccolo());
+        valueLabel.setForeground(Stile.SUB0);
+        card.add(valueLabel, c);
+
+        JTextField value = new JTextField(field.serie() != null
+                ? field.serie().codice(field.serie().prossimo())
+                : field.valore());
+        value.setFont(Stile.normale());
+        value.setPreferredSize(new Dimension(Stile.px(180), Stile.px(36)));
+        values.put(field, value);
+        c.gridy++;
+        c.insets = new Insets(0, 0, 0, 0);
+        card.add(value, c);
+        value.addActionListener(e -> saveInputsAndRefresh());
+        value.addFocusListener(new FocusAdapter() {
+            @Override public void focusLost(FocusEvent event) { saveInputsAndRefresh(); }
+        });
+
+        if (field.comportamento() == Comportamento.PROGRESSIVO) {
+            c.gridy++;
+            c.insets = new Insets(Stile.px(9), 0, Stile.px(4), 0);
+            JLabel digitsLabel = new JLabel("Ultime cifre che aumentano");
+            digitsLabel.setFont(Stile.piccolo());
+            digitsLabel.setForeground(Stile.SUB0);
+            card.add(digitsLabel, c);
+
+            Integer[] options = new Integer[9];
+            for (int i = 0; i < options.length; i++) options[i] = Integer.valueOf(i + 1);
+            int current = field.serie() == null ? 3 : field.serie().cifre();
+            JComboBox<Integer> digitChoice = new JComboBox<Integer>(options);
+            digitChoice.setSelectedItem(Integer.valueOf(current));
+            digitChoice.setFont(Stile.normale());
+            digitChoice.setPreferredSize(new Dimension(Stile.px(90), Stile.px(36)));
+            digits.put(field, digitChoice);
+            c.gridy++;
+            c.insets = new Insets(0, 0, 0, 0);
+            card.add(digitChoice, c);
+            digitChoice.addActionListener(e -> {
+                if (!updating) saveInputsAndRefresh();
+            });
+
+            JPanel range = new JPanel(new FlowLayout(FlowLayout.LEFT, Stile.px(5), 0));
+            range.setOpaque(false);
+            CodiceView from = new CodiceView("", "");
+            CodiceView to = new CodiceView("", "");
+            from.corpo(11);
+            to.corpo(11);
+            ranges.put(field, new CodiceView[] { from, to });
+            range.add(from);
+            JLabel arrow = new JLabel("→");
+            arrow.setForeground(Stile.OV1);
+            range.add(arrow);
+            range.add(to);
+            c.gridy++;
+            c.insets = new Insets(Stile.px(8), 0, 0, 0);
+            card.add(range, c);
+        }
+
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, card.getPreferredSize().height));
+        return card;
+    }
+
+    private void saveInputsAndRefresh() {
+        if (updating) return;
+        saveInputs();
+        updateState();
+    }
+
+    private void saveInputs() {
+        for (Map.Entry<Campo, JTextField> entry : values.entrySet()) {
+            Campo field = entry.getKey();
+            String value = entry.getValue().getText().trim();
+            try {
+                if (field.comportamento() == Comportamento.PROGRESSIVO) {
+                    JComboBox<Integer> choice = digits.get(field);
+                    int count = choice == null
+                            ? (field.serie() == null ? 3 : field.serie().cifre())
+                            : ((Integer) choice.getSelectedItem()).intValue();
+                    field.serie(new Serie(value, count));
+                } else {
+                    field.valore(value);
+                }
+            } catch (RuntimeException ex) {
+                result.setText(NomiDati.nome(label, field) + ": " + ex.getMessage());
+                result.setForeground(Stile.ROSSO);
+            }
+        }
+        preview.repaint();
+    }
+
+    private Integer copyCount() {
+        try {
+            int count = Integer.parseInt(copies.getText().trim());
+            if (count < 1 || count > 100000) throw new NumberFormatException();
+            return Integer.valueOf(count);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private void updateState() {
+        if (updating) return;
+        updating = true;
+        try {
+            Integer count = copyCount();
+            String error = null;
+            if (count == null) {
+                error = "Inserisci un numero di copie tra 1 e 100000";
+            } else {
+                try {
+                    label.validaGiro(count.intValue());
+                } catch (RuntimeException ex) {
+                    error = ex.getMessage();
+                }
+            }
+
+            if (count != null) {
+                for (Map.Entry<Campo, CodiceView[]> entry : ranges.entrySet()) {
+                    Campo field = entry.getKey();
+                    if (field.serie() == null) continue;
+                    Serie series = field.serie();
+                    try {
+                        String[] run = series.giro(count.intValue());
+                        entry.getValue()[0].testo(series.prefisso(), series.finestra(series.prossimo()));
+                        String last = run[run.length - 1];
+                        entry.getValue()[1].testo(series.prefisso(),
+                                last.substring(Math.min(series.prefisso().length(), last.length())));
+                    } catch (RuntimeException ex) {
+                        error = ex.getMessage();
+                    }
+                }
+            }
+
+            if (error == null && count != null) {
+                int n = count.intValue();
+                print.setText("Stampa " + n + (n == 1 ? " etichetta" : " etichette"));
+                state.setText("✓  Pronto per la stampa");
+                state.setForeground(Stile.VERDE);
+                detail.setText(n + (n == 1 ? " etichetta" : " etichette")
+                        + " · " + num(label.larghezza()) + " × " + num(label.altezza()) + " mm");
+                print.setEnabled(true);
+            } else {
+                print.setText("Stampa");
+                state.setText("⚠  Controlla i dati");
+                state.setForeground(Stile.PESCA);
+                detail.setText(error == null ? "Controlla i valori" : error);
+                print.setEnabled(false);
+            }
+            preview.repaint();
+        } finally {
+            updating = false;
+        }
+    }
+
+    private void sendToPrinter() {
+        saveInputs();
+        Integer count = copyCount();
+        if (count == null) {
+            updateState();
+            java.awt.Toolkit.getDefaultToolkit().beep();
+            return;
+        }
+
+        int n = count.intValue();
+        try {
+            label.validaGiro(n);
+            String[] codes = label.codiciGiro(n);
+            StampaGiro job = new StampaGiro(label, qr, n);
+            if (!job.manda(label.nome())) {
+                result.setText("Stampa annullata · nessun progressivo avanzato");
+                result.setForeground(Stile.SUB0);
+                return;
+            }
+            label.consumaProgressivi(n);
+            archive.salva(label);
+            log.annota(label, codes, settings.stampante());
+            syncFieldsFromModel();
+            updateState();
+            result.setText("✓ Giro stampato e registrato");
+            result.setForeground(Stile.VERDE);
+        } catch (PrinterException ex) {
+            result.setText("Stampante: " + ex.getMessage());
+            result.setForeground(Stile.ROSSO);
+        } catch (Exception ex) {
+            result.setText("Stampa non completata: " + ex.getMessage());
+            result.setForeground(Stile.ROSSO);
+        }
+    }
+
+    private void syncFieldsFromModel() {
+        updating = true;
+        try {
+            for (Map.Entry<Campo, JTextField> entry : values.entrySet()) {
+                Campo field = entry.getKey();
+                entry.getValue().setText(field.serie() != null
+                        ? field.serie().codice(field.serie().prossimo())
+                        : field.valore());
+            }
+        } finally {
+            updating = false;
+        }
+    }
+
+    private javax.swing.JComponent labeled(String name, javax.swing.JComponent component) {
+        JPanel row = new JPanel(new BorderLayout(Stile.px(10), 0));
+        row.setOpaque(false);
+        JLabel label = new JLabel(name);
+        label.setFont(Stile.piccolo());
+        label.setForeground(Stile.SUB0);
+        row.add(label, BorderLayout.WEST);
+        row.add(component, BorderLayout.CENTER);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, Stile.px(36)));
+        return row;
+    }
+
+    private javax.swing.JComponent statusBar() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, Stile.S0),
+                BorderFactory.createEmptyBorder(
+                        Stile.px(7), Stile.px(18), Stile.px(7), Stile.px(18))));
+        JLabel mode = new JLabel("MODALITA' OPERATORE  ·  layout protetto");
+        mode.setFont(Stile.minuscolo());
+        mode.setForeground(Stile.OV1);
+        result.setFont(Stile.piccolo());
+        result.setHorizontalAlignment(SwingConstants.RIGHT);
+        panel.add(mode, BorderLayout.WEST);
+        panel.add(result, BorderLayout.EAST);
+        return panel;
+    }
+
+    private static Color color(Campo field) {
+        if (field.comportamento() == Comportamento.PROGRESSIVO) return Stile.PESCA;
+        if (field.comportamento() == Comportamento.CHIESTO) return Stile.LAVANDA;
+        return Stile.CELESTE;
+    }
+
+    private static String num(double value) {
+        return String.valueOf(Math.round(value * 10) / 10.0)
+                .replace(".0", "").replace('.', ',');
+    }
+
+    private final class Preview extends javax.swing.JComponent {
+        @Override public Dimension getPreferredSize() {
+            return new Dimension(Stile.px(650), Stile.px(500));
+        }
+
+        @Override protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = Stile.liscio(g);
+            try {
+                g2.setColor(Stile.BANCO);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                double sx = (getWidth() - Stile.px(80)) / label.larghezza();
+                double sy = (getHeight() - Stile.px(90)) / label.altezza();
+                double mm = Math.max(.1, Math.min(sx, sy));
+                int width = (int) Math.round(label.larghezza() * mm);
+                int height = (int) Math.round(label.altezza() * mm);
+                int x = (getWidth() - width) / 2;
+                int y = (getHeight() - height) / 2;
+                g2.setColor(new Color(0, 0, 0, 34));
+                g2.fillRect(x + Stile.px(5), y + Stile.px(6), width, height);
+                g2.setColor(Color.WHITE);
+                g2.fillRect(x, y, width, height);
+                g2.setColor(Stile.S1);
+                g2.drawRect(x, y, width, height);
+                g2.translate(x, y);
+                Disegno.disegna(g2, label, mm, qr, 0);
+            } finally {
+                g2.dispose();
+            }
+        }
     }
 }
