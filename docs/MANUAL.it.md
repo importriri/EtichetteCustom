@@ -6,31 +6,47 @@ All'avvio scegli l'etichetta dalla sua anteprima reale. Un click normale apre la
 **Modalità operatore**. Usa **Modifica layout** soltanto quando devi cambiare il
 disegno dell'etichetta.
 
-La ricerca filtra i modelli per nome. Le impostazioni sono raccolte nel pulsante
-**Impostazioni…**.
+Su una nuova installazione compare una sola etichetta **Esempio**. Da quel
+momento la vetrina mostra soltanto le etichette che hai salvato o creato.
+
+La ricerca filtra le etichette per nome. Le impostazioni sono raccolte nel
+pulsante **Impostazioni…**.
 
 ## 2. Prepara il giro
 
 La schermata mostra una scheda per ogni dato realmente usato dall'etichetta.
-Se QR e testo leggono lo stesso dato, il valore viene chiesto una sola volta.
+Se QR e testo usano lo stesso codice, il valore viene inserito una sola volta.
 
 Imposta il numero di copie. Ogni dato progressivo mostra il primo e l'ultimo
 codice che usciranno nel giro.
 
 Un'etichetta può avere più progressivi indipendenti: ognuno mantiene il proprio
-prefisso, finestra numerica e contatore.
+prefisso, la propria parte numerica e il proprio contatore.
 
 ## 3. Stampa
 
-Controlla il riquadro di preflight e premi **Stampa**. La coda reale viene scelta
-nella finestra di stampa del sistema operativo.
+Controlla il riepilogo e premi **Stampa**. La coda reale viene scelta nella
+finestra di stampa del sistema operativo.
 
 Se annulli quella finestra, **nessun progressivo avanza**. I numeri vengono
 consumati soltanto dopo una stampa completata con successo.
 
 ## 4. Modifica layout
 
-Nel Banco puoi aggiungere testo, codice leggibile, QR, barcode e linee.
+L'editor è pensato per essere usato soprattutto con il mouse:
+
+1. clicca un elemento per selezionarlo;
+2. trascinalo per spostarlo;
+3. trascina una maniglia blu per ridimensionarlo;
+4. usa il pannello a destra solo per le scelte che non si fanno direttamente
+   sulla carta.
+
+Un QR rimane quadrato mentre lo ridimensioni. La griglia serve come riferimento
+visivo e gli spostamenti vengono mantenuti entro la carta quando possibile.
+
+Le misure X/Y/larghezza e il corpo del testo non sono mostrate durante il lavoro
+normale. Apri **Misure precise** soltanto quando ti serve inserire un valore in
+millimetri.
 
 Scorciatoie principali:
 
@@ -40,28 +56,53 @@ Scorciatoie principali:
 - `Ctrl+Z` — annulla;
 - `Ctrl+Y` oppure `Ctrl+Shift+Z` — ripeti.
 
-Le coordinate sono in millimetri. Dopo una rotazione l'elemento viene mantenuto
-dentro la carta quando possibile.
+## 5. Testo leggibile
 
-## 5. Dati condivisi e indipendenti
+Quando selezioni un elemento di testo puoi scegliere direttamente:
 
-Ogni elemento legge un dato. Collegare QR e testo allo stesso dato è utile
-quando devono rappresentare esattamente lo stesso codice.
+- allineamento a sinistra, centro o destra;
+- disposizione automatica oppure 1, 2 o 3 righe;
+- rotazione 0°, 90°, 180° o 270°;
+- **Mostra punti e simboli**.
 
-Usa **Rendi indipendente** quando un elemento deve invece avere un valore o un
-progressivo separato. I nomi mostrati nell'interfaccia sono descrittivi; gli ID
-tecnici rimangono interni al file del layout.
+La disposizione automatica prova a mantenere il testo grande e leggibile,
+preferendo i separatori naturali del codice quando deve andare a capo. Non deve
+mai perdere caratteri in silenzio.
 
-## 6. QR e barcode
+**Mostra punti e simboli** cambia soltanto la scritta visibile. Il valore usato
+dal QR o dal barcode rimane sempre quello completo. Per esempio il QR può
+contenere `210150.022_02-01.262350009` mentre il testo viene presentato senza i
+separatori scelti per la stampa.
+
+## 6. Stesso codice tra più elementi
+
+QR, testo e barcode possono usare lo stesso codice. Nel pannello dell'elemento
+usa **Usa lo stesso codice di** per scegliere il dato già usato da un altro
+elemento.
+
+Se vuoi separare soltanto l'elemento selezionato, premi **Usa un codice diverso**.
+Non serve conoscere gli identificatori interni del file: l'interfaccia mostra i
+nomi leggibili degli elementi che condividono il dato.
+
+## 7. QR e barcode
 
 Gli indicatori di qualità aiutano a riconoscere codici troppo piccoli o con zona
-bianca ridotta. Un avviso arancione richiede attenzione; un errore rosso indica
-un contenuto non valido.
+bianca insufficiente. Se il QR è troppo piccolo, allargalo direttamente tramite
+una maniglia. Un errore rosso indica invece un contenuto non valido.
 
 Per la verifica definitiva conta sempre anche la prova sul supporto e sulla
 stampante reale.
 
-## 7. Impostazioni
+## 8. Windows e ridimensionamento dell'interfaccia
+
+L'editor usa controlli e griglia disegnati in modo coerente tra Windows e Linux.
+La pipeline del progetto verifica inoltre l'interfaccia su Windows a più scale,
+comprese quelle tipiche dei monitor impostati al 125%, 150% e 200%.
+
+Se il sistema usa uno scaling elevato non è necessario cambiare le dimensioni
+fisiche dell'etichetta: la geometria di stampa rimane espressa in millimetri.
+
+## 9. Impostazioni
 
 **Generale** contiene le cartelle dei layout e del registro. **Stampante** salva
 il nome usato nel registro e il DPI utilizzato dai controlli di leggibilità.
