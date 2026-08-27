@@ -1,6 +1,6 @@
 package prove;
 
-/** Esegue tutte le suite e torna 1 se qualcosa non va. */
+/** Runs every regression suite and exits with status 1 if any check fails. */
 public final class Tutte {
 
     private Tutte() { }
@@ -15,6 +15,7 @@ public final class Tutte {
         ProvaStampa.esegui();
         ProvaGiornata.esegui();
         ProvaSchermate.esegui();
+        ProvaMedia.esegui();
         System.exit(Prove.conclusione());
     }
 }
