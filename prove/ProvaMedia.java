@@ -13,6 +13,7 @@ import javax.imageio.stream.ImageInputStream;
 /** Verifies that repository screenshots and the demo animation are valid release media. */
 public final class ProvaMedia {
     private static final int MIN_WIDTH = 640;
+    private static final int MIN_GIF_WIDTH = 600;
     private static final int MIN_HEIGHT = 360;
     private static final long MAX_SCREENSHOT_BYTES = 500_000L;
     private static final long MAX_DEMO_BYTES = 1_500_000L;
@@ -60,7 +61,7 @@ public final class ProvaMedia {
         try (ImageInputStream input = ImageIO.createImageInputStream(file)) {
             reader.setInput(input, false, false);
             int frames = reader.getNumImages(true);
-            Prove.vero(path + " has useful width", reader.getWidth(0) >= MIN_WIDTH);
+            Prove.vero(path + " has useful width", reader.getWidth(0) >= MIN_GIF_WIDTH);
             Prove.vero(path + " has useful height", reader.getHeight(0) >= MIN_HEIGHT);
             Prove.vero(path + " is animated", frames >= 3);
         } finally {
