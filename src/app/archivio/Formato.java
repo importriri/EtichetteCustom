@@ -12,25 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Il formato con cui un'etichetta finisce su disco.
- *
- * Testo, una riga per cosa, campi separati da tabulazione. Si legge con
- * un editor, si confronta con diff, si aggiusta a mano quando serve: su
- * un PC di reparto, poter aprire il file e capire cosa c'e' scritto vale
- * piu' di qualunque formato compatto.
- *
- * I numeri sono scritti sempre con il punto decimale, non con la virgola:
- * un file salvato su un Windows italiano deve potersi aprire ovunque.
- */
+/** Formato testuale leggibile e compatibile delle etichette. */
 public final class Formato {
 
-    /** Cambiare questo numero solo insieme a chi legge i file vecchi. */
-    public static final int VERSIONE = 2;
+    public static final int VERSIONE = 3;
 
     private Formato() { }
-
-    /* ================= scrittura ================= */
 
     public static String scrivi(Etichetta e) {
         StringBuilder b = new StringBuilder();
@@ -65,26 +52,22 @@ public final class Formato {
                     .append('\t').append(el.rotazione())
                     .append('\t').append(el.massimoRighe())
                     .append('\t').append(el.correzione().name())
+                    .append('\t').append(el.allineamento())
+                    .append('\t').append(el.mostraSeparatori() ? 1 : 0)
                     .append('\n');
         }
         return b.toString();
     }
 
-    /* ================= lettura ================= */
-
     public static Etichetta leggi(String testo) {
-        if (testo == null || testo.trim().isEmpty()) {
-            throw new IllegalArgumentException("file vuoto");
-        }
+        if (testo == null || testo.trim().isEmpty()) throw new IllegalArgumentException("file vuoto");
         String[] righe = testo.split("\n", -1);
         if (righe.length == 0 || !righe[0].startsWith("etichette-custom\t")) {
-            throw new IllegalArgumentException(
-                    "questo non sembra un file di Etichette Custom");
+            throw new IllegalArgumentException("questo non sembra un file di Etichette Custom");
         }
         int versione = intero(pezzi(righe[0])[1], "versione del formato");
         if (versione > VERSIONE) {
-            throw new IllegalArgumentException("file scritto da una versione piu' nuova ("
-                    + versione + "): aggiorna il programma");
+            throw new IllegalArgumentException("file scritto da una versione piu' nuova (" + versione + "): aggiorna il programma");
         }
 
         String nome = "senza nome";
@@ -96,9 +79,7 @@ public final class Formato {
 
         for (int i = 1; i < righe.length; i++) {
             String riga = righe[i];
-            if (riga.trim().isEmpty() || riga.startsWith("#")) {
-                continue;
-            }
+            if (riga.trim().isEmpty() || riga.startsWith("#")) continue;
             String[] p = pezzi(riga);
             String tipoRiga = p[0];
             try {
@@ -111,39 +92,26 @@ public final class Formato {
                     int cifre = intero(p[2], "cifre della serie");
                     int prossimo = intero(p[3], "prossimo della serie");
                     StringBuilder coda = new StringBuilder(Integer.toString(prossimo));
-                    while (coda.length() < cifre) {
-                        coda.insert(0, '0');
-                    }
+                    while (coda.length() < cifre) coda.insert(0, '0');
                     serieVecchia = new Serie(p[1] + coda, cifre);
                 } else if ("campo".equals(tipoRiga)) {
-                    Campo c = new Campo(p[1], Comportamento.valueOf(p[2]),
-                            p.length > 3 ? p[3] : "");
+                    Campo c = new Campo(p[1], Comportamento.valueOf(p[2]), p.length > 3 ? p[3] : "");
                     if (p.length > 5 && !p[4].isEmpty()) {
                         c.serie(new Serie(p[4], intero(p[5], "cifre della serie di " + p[1])));
                     }
                     campi.add(c);
                 } else if ("elemento".equals(tipoRiga)) {
                     elementi.add(elemento(p));
-                } else {
-                    /* riga sconosciuta: la si salta invece di rifiutare tutto */
-                    continue;
                 }
             } catch (RuntimeException rotta) {
-                throw new IllegalArgumentException(
-                        "riga " + (i + 1) + " (" + tipoRiga + "): " + rotta.getMessage(), rotta);
+                throw new IllegalArgumentException("riga " + (i + 1) + " (" + tipoRiga + "): " + rotta.getMessage(), rotta);
             }
         }
 
         Etichetta e = new Etichetta(nome, larghezza, altezza);
-        for (Campo c : campi) {
-            e.aggiungi(c);
-        }
-        if (serieVecchia != null && e.serie() == null) {
-            e.serie(serieVecchia);
-        }
-        for (Elemento el : elementi) {
-            e.aggiungi(el);
-        }
+        for (Campo c : campi) e.aggiungi(c);
+        if (serieVecchia != null && e.serie() == null) e.serie(serieVecchia);
+        for (Elemento el : elementi) e.aggiungi(el);
         return e;
     }
 
@@ -156,95 +124,63 @@ public final class Formato {
         el.grassetto(!"0".equals(p[9]));
         el.rotazione(intero(p[10], "rotazione"));
         el.massimoRighe(intero(p[11], "righe"));
-        if (p.length > 12 && !p[12].isEmpty()) {
-            el.correzione(Correzione.valueOf(p[12]));
-        }
+        if (p.length > 12 && !p[12].isEmpty()) el.correzione(Correzione.valueOf(p[12]));
+        if (p.length > 13 && !p[13].isEmpty()) el.allineamento(intero(p[13], "allineamento"));
+        if (p.length > 14 && !p[14].isEmpty()) el.mostraSeparatori(!"0".equals(p[14]));
         return el;
     }
-
-    /* ================= minuterie ================= */
 
     private static String[] pezzi(String riga) {
         String[] grezzi = riga.split("\t", -1);
         String[] out = new String[grezzi.length];
-        for (int i = 0; i < grezzi.length; i++) {
-            out[i] = sfuga(grezzi[i]);
-        }
+        for (int i = 0; i < grezzi.length; i++) out[i] = sfuga(grezzi[i]);
         return out;
     }
 
-    /** Tabulazioni e a capo dentro un valore non devono spezzare il file. */
     static String fuga(String s) {
-        if (s == null) {
-            return "";
-        }
+        if (s == null) return "";
         StringBuilder b = new StringBuilder(s.length());
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
-            if (c == '\\') {
-                b.append("\\\\");
-            } else if (c == '\t') {
-                b.append("\\t");
-            } else if (c == '\n') {
-                b.append("\\n");
-            } else if (c == '\r') {
-                b.append("\\r");
-            } else {
-                b.append(c);
-            }
+            if (c == '\\') b.append("\\\\");
+            else if (c == '\t') b.append("\\t");
+            else if (c == '\n') b.append("\\n");
+            else if (c == '\r') b.append("\\r");
+            else b.append(c);
         }
         return b.toString();
     }
 
     static String sfuga(String s) {
-        if (s.indexOf('\\') < 0) {
-            return s;
-        }
+        if (s.indexOf('\\') < 0) return s;
         StringBuilder b = new StringBuilder(s.length());
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             if (c == '\\' && i + 1 < s.length()) {
                 char d = s.charAt(++i);
-                if (d == 't') {
-                    b.append('\t');
-                } else if (d == 'n') {
-                    b.append('\n');
-                } else if (d == 'r') {
-                    b.append('\r');
-                } else {
-                    b.append(d);
-                }
-            } else {
-                b.append(c);
-            }
+                if (d == 't') b.append('\t');
+                else if (d == 'n') b.append('\n');
+                else if (d == 'r') b.append('\r');
+                else b.append(d);
+            } else b.append(c);
         }
         return b.toString();
     }
 
     static String num(double v) {
         String s = String.format(Locale.ROOT, "%.2f", v);
-        while (s.endsWith("0")) {
-            s = s.substring(0, s.length() - 1);
-        }
-        if (s.endsWith(".")) {
-            s = s.substring(0, s.length() - 1);
-        }
+        while (s.endsWith("0")) s = s.substring(0, s.length() - 1);
+        if (s.endsWith(".")) s = s.substring(0, s.length() - 1);
         return s;
     }
 
     private static double decimale(String s, String cosa) {
-        try {
-            return Double.parseDouble(s.trim());
-        } catch (NumberFormatException rotta) {
-            throw new IllegalArgumentException(cosa + " non e' un numero: \"" + s + "\"");
-        }
+        try { return Double.parseDouble(s.trim()); }
+        catch (NumberFormatException rotta) { throw new IllegalArgumentException(cosa + " non e' un numero: \"" + s + "\""); }
     }
 
     private static int intero(String s, String cosa) {
-        try {
-            return Integer.parseInt(s.trim());
-        } catch (NumberFormatException rotta) {
-            throw new IllegalArgumentException(cosa + " non e' un numero intero: \"" + s + "\"");
-        }
+        try { return Integer.parseInt(s.trim()); }
+        catch (NumberFormatException rotta) { throw new IllegalArgumentException(cosa + " non e' un numero intero: \"" + s + "\""); }
     }
 }
