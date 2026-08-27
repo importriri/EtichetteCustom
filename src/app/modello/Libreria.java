@@ -3,12 +3,12 @@ package app.modello;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Etichette di esempio e fixture del programma. */
+/** Built-in sample labels and test fixtures. */
 public final class Libreria {
 
     private Libreria() { }
 
-    /** Fixture storiche usate dai test e da installazioni precedenti. */
+    /** Historical fixtures retained for tests and older installations. */
     public static List<Etichetta> iniziale() {
         List<Etichetta> out = new ArrayList<Etichetta>();
         out.add(articolo());
@@ -19,7 +19,7 @@ public final class Libreria {
         return out;
     }
 
-    /** Sul nuovo archivio v2 compare una sola etichetta semplice e modificabile. */
+    /** A fresh archive starts with one small editable example. */
     public static List<Etichetta> inizialeV2() {
         List<Etichetta> out = new ArrayList<Etichetta>();
         out.add(esempio());
