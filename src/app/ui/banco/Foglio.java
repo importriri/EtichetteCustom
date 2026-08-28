@@ -25,7 +25,7 @@ import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 
-/** Canvas con spostamento e ridimensionamento diretto. */
+/** Canvas with direct move and resize manipulation. */
 public class Foglio extends JComponent {
     public interface Ascolto{void selezionato(Elemento e);void staPerCambiare();void modificato();}
     private enum Angolo{NO,NW,NE,SW,SE}

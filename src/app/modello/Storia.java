@@ -4,7 +4,7 @@ import app.archivio.Formato;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-/** Annulla e ripeti dell’editor tramite snapshot testuali del modello. */
+/** Editor undo/redo implemented with serialized model snapshots. */
 public class Storia {
     private static final int QUANTE = 40;
     private final Deque<String> pila = new ArrayDeque<String>();

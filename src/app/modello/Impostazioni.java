@@ -4,9 +4,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 
-/** Impostazioni persistenti della postazione. */
+/** Persistent workstation settings. */
 public class Impostazioni {
     private static final String STAMPANTE_PREDEFINITA = "Datamax E-4203";
     private final File file;
@@ -17,9 +20,9 @@ public class Impostazioni {
 
     public Impostazioni() {
         /*
-         * v2 usa deliberatamente una radice nuova: un PC di produzione che
-         * aveva provato versioni precedenti parte pulito, senza import impliciti.
-         * I vecchi dati restano intatti nella vecchia cartella.
+         * v2 deliberately uses a new root so production workstations that tried
+         * older builds start clean without implicit data migration. Old data is
+         * left untouched in its previous location.
          */
         File casa = new File(System.getProperty("user.home", "."), "EtichetteCustom-v2");
         file = new File(casa, "impostazioni.properties");
@@ -45,17 +48,17 @@ public class Impostazioni {
                 try {
                     int n = Integer.parseInt(v.trim());
                     if (n >= 100 && n <= 1200) risoluzioneDpi = n;
-                } catch (NumberFormatException ignorato) { }
+                } catch (NumberFormatException ignored) { }
             }
-        } catch (IOException ignorato) {
-            /* I valori predefiniti permettono comunque di avviare l'app. */
+        } catch (IOException ignored) {
+            /* Defaults keep the application usable when the settings file is unreadable. */
         }
     }
 
     public void salva() throws IOException {
         File parent = file.getParentFile();
         if (!parent.isDirectory() && !parent.mkdirs()) {
-            throw new IOException("non riesco a creare " + parent);
+            throw new IOException("cannot create " + parent);
         }
         Properties p = new Properties();
         p.setProperty("cartella.etichette", cartellaEtichette.getAbsolutePath());
@@ -68,12 +71,12 @@ public class Impostazioni {
             p.store(out, "Etichette Custom v2");
             out.getFD().sync();
         } finally { out.close(); }
-        if (file.exists() && !file.delete()) {
-            tmp.delete();
-            throw new IOException("non riesco a sostituire " + file);
-        }
-        if (!tmp.renameTo(file)) {
-            throw new IOException("non riesco a salvare " + file);
+
+        try {
+            Files.move(tmp.toPath(), file.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException unsupported) {
+            Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

@@ -20,7 +20,7 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.Locale;
 
-/** Export SVG con le stesse misure e rotazioni del renderer. */
+/** SVG export using the same dimensions and rotations as the renderer. */
 public final class Svg {
     private Svg() { }
 

@@ -5,18 +5,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Generatore di codici QR, in modalita' byte, versioni dalla 1 alla 40.
+ * QR encoder for byte mode, versions 1 through 40.
  *
- * Scritto a mano perche' la repo non tira dentro librerie: un jar in piu'
- * e' un jar che qualcuno deve aggiornare fra due anni.
- *
- * Le tabelle qui sotto sono quelle dello standard ISO/IEC 18004. Non
- * fidatevi di me: le prove decodificano i QR generati con un lettore
- * indipendente (zbar) e confrontano la stringa che torna fuori.
+ * The implementation stays dependency-free so the application remains a single
+ * standalone JAR. The tables below follow ISO/IEC 18004, and regression tests
+ * decode generated symbols with an independent reader instead of trusting the encoder.
  */
 public final class Qr {
 
-    /** Codeword di correzione per ogni blocco, per livello e versione. */
+    /** Error-correction codewords per block, by level and version. */
     private static final int[][] CORREZIONE_PER_BLOCCO = {
         { 0, 7, 10, 15, 20, 26, 18, 20, 24, 30, 18, 20, 24, 26, 30, 22, 24, 28, 30, 28,
           28, 28, 28, 30, 30, 26, 28, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30 },
@@ -28,7 +25,7 @@ public final class Qr {
           28, 30, 24, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30 },
     };
 
-    /** In quanti blocchi vengono divisi i dati, per livello e versione. */
+    /** Number of data blocks, by correction level and version. */
     private static final int[][] BLOCCHI = {
         { 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 4, 6, 6, 6, 6, 7,
           8, 8, 9, 9, 10, 12, 12, 12, 13, 14, 15, 16, 17, 18, 19, 19, 20, 21, 22, 24, 25 },
@@ -59,10 +56,10 @@ public final class Qr {
     }
 
     /* ================================================================
-       Ingresso pubblico
+       Public entry points
        ================================================================ */
 
-    /** @return matrice quadrata di moduli, true = scuro. Niente zona di quiete. */
+    /** @return square module matrix, true for dark; quiet zone excluded. */
     public static boolean[][] codifica(String testo, Correzione livello) {
         if (testo == null) {
             testo = "";
@@ -76,7 +73,7 @@ public final class Qr {
         return new Qr(versione, livello, flusso).moduli;
     }
 
-    /** La versione (1-40) che verrebbe usata: serve per capire quanto sara' fitto. */
+    /** Version (1-40) selected for the payload, useful for density checks. */
     public static int versionePer(String testo, Correzione livello) {
         return versioneMinima(byteDi(testo).length, livello == null ? Correzione.M : livello);
     }
@@ -106,12 +103,12 @@ public final class Qr {
     }
 
     /* ================================================================
-       Dai byte al flusso di codeword
+       Bytes to codeword stream
        ================================================================ */
 
     private static int[] costruisciFlusso(byte[] dati, int versione, Correzione livello) {
         List<Boolean> bit = new ArrayList<Boolean>();
-        aggiungiBit(bit, 0x4, 4);                                  /* modalita' byte */
+        aggiungiBit(bit, 0x4, 4);                                  /* byte mode */
         aggiungiBit(bit, dati.length, bitDiConteggio(versione));
         for (byte b : dati) {
             aggiungiBit(bit, b & 0xFF, 8);
@@ -119,7 +116,7 @@ public final class Qr {
 
         int capacita = codewordDati(versione, livello) * 8;
         for (int i = 0; i < 4 && bit.size() < capacita; i++) {
-            bit.add(Boolean.FALSE);                                /* terminatore */
+            bit.add(Boolean.FALSE);                                /* terminator */
         }
         while (bit.size() % 8 != 0) {
             bit.add(Boolean.FALSE);
@@ -145,7 +142,7 @@ public final class Qr {
         }
     }
 
-    /** Moduli disponibili ai dati, tolto tutto quello che e' di servizio. */
+    /** Modules available to payload data after reserving structural patterns. */
     public static int moduliGrezzi(int versione) {
         int risultato = (16 * versione + 128) * versione + 64;
         if (versione >= 2) {
@@ -158,7 +155,7 @@ public final class Qr {
         return risultato;
     }
 
-    /** Quanti byte utili entrano in una versione, a quel livello di correzione. */
+    /** Payload bytes that fit in a version at the requested correction level. */
     public static int codewordDati(int versione, Correzione livello) {
         int l = livello.indice();
         return moduliGrezzi(versione) / 8
@@ -166,9 +163,8 @@ public final class Qr {
     }
 
     /**
-     * Divide i dati in blocchi, calcola la correzione di ciascuno e li
-     * intreccia: cosi' una macchia che rovina una zona del codice colpisce
-     * un pezzetto di ogni blocco invece di distruggerne uno intero.
+     * Splits data into blocks, computes correction bytes for each block, and
+     * interleaves them so local damage is distributed instead of destroying one block.
      */
     private static int[] intrecciaConCorrezione(int[] dati, int versione, Correzione livello) {
         int l = livello.indice();
@@ -179,10 +175,9 @@ public final class Qr {
         int lunghezzaCorta = totale / quantiBlocchi;
 
         /*
-         * Tutti i blocchi vengono allocati della stessa lunghezza, con la
-         * correzione appoggiata in fondo. I blocchi corti restano cosi' con
-         * un buco a meta', nell'unico punto in cui l'intreccio sa di dover
-         * saltare: e' il patto che tiene allineate le due meta' del lavoro.
+         * Allocate every block with the same backing length and keep correction
+         * bytes at the end. Short blocks leave one intentional gap that the
+         * interleaver skips, keeping data and correction halves aligned.
          */
         int lunghezzaBlocco = lunghezzaCorta + 1;
         int[][] blocchi = new int[quantiBlocchi][];
@@ -214,7 +209,7 @@ public final class Qr {
     }
 
     /* ================================================================
-       Disegno della matrice
+       Matrix construction
        ================================================================ */
 
     private void servizio(int x, int y, boolean scuro) {
@@ -243,7 +238,7 @@ public final class Qr {
             }
         }
 
-        disegnaFormato(Correzione.L, 0);   /* segnaposto: riscritto alla fine */
+        disegnaFormato(Correzione.L, 0);   /* placeholder, rewritten at the end */
         disegnaVersione();
     }
 
@@ -309,7 +304,7 @@ public final class Qr {
         for (int i = 8; i < 15; i++) {
             servizio(8, lato - 15 + i, prendiBit(bit, i));
         }
-        servizio(8, lato - 8, true);      /* il modulo scuro fisso */
+        servizio(8, lato - 8, true);      /* fixed dark module */
     }
 
     private void disegnaVersione() {
@@ -374,9 +369,8 @@ public final class Qr {
     }
 
     /**
-     * Le otto maschere si provano tutte e vince quella con meno difetti:
-     * grandi macchie uniformi e finti mirini sono quello che manda in crisi
-     * un lettore a mano libera.
+     * Evaluates all eight masks and keeps the lowest-penalty result. Large
+     * uniform areas and finder-like patterns are especially harmful to scanning.
      */
     private int scegliMaschera(Correzione livello) {
         int migliore = 0;
@@ -385,7 +379,7 @@ public final class Qr {
             applicaMaschera(m);
             disegnaFormato(livello, m);
             int punteggio = penalita();
-            applicaMaschera(m);              /* la maschera e' il suo stesso inverso */
+            applicaMaschera(m);              /* applying a mask twice restores the data */
             if (punteggio < punteggioMigliore) {
                 punteggioMigliore = punteggio;
                 migliore = m;
@@ -396,7 +390,7 @@ public final class Qr {
 
     private int penalita() {
         int p = 0;
-        /* 1 - file di cinque o piu' moduli uguali */
+        /* 1 - runs of five or more equal modules */
         for (int y = 0; y < lato; y++) {
             boolean colore = moduli[y][0];
             int quanti = 1;
@@ -425,7 +419,7 @@ public final class Qr {
             }
             p += punteggioFila(quanti);
         }
-        /* 2 - quadrati 2x2 dello stesso colore */
+        /* 2 - 2x2 blocks of the same color */
         for (int y = 0; y < lato - 1; y++) {
             for (int x = 0; x < lato - 1; x++) {
                 boolean c = moduli[y][x];
@@ -434,7 +428,7 @@ public final class Qr {
                 }
             }
         }
-        /* 3 - sequenze che somigliano a un mirino */
+        /* 3 - sequences resembling a finder pattern */
         for (int y = 0; y < lato; y++) {
             for (int x = 0; x < lato - 10; x++) {
                 if (somigliaAMirino(y, x, true)) {
@@ -449,7 +443,7 @@ public final class Qr {
                 }
             }
         }
-        /* 4 - sbilanciamento fra scuro e chiaro */
+        /* 4 - dark/light balance */
         int scuri = 0;
         for (int y = 0; y < lato; y++) {
             for (int x = 0; x < lato; x++) {

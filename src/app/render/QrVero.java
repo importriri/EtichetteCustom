@@ -3,7 +3,7 @@ package app.render;
 import app.codice.Correzione;
 import app.codice.Qr;
 
-/** La sorgente di produzione: l'encoder QR della repo. */
+/** Production QR source backed by the repository encoder. */
 public class QrVero implements SorgenteQr {
 
     @Override

@@ -10,15 +10,9 @@ import java.awt.Graphics2D;
 import javax.swing.JComponent;
 
 /**
- * La finestra dell'incremento, scritta.
- *
- * Il prefisso resta grigio, le cifre che si muovono stanno dentro un
- * riquadro arancione. Compare identica sulla tessera, nella riga del giro,
- * nel pannello proprieta' e nell'elenco di stampa: l'operatore non deve
- * mai contare le cifre a mano per capire che cosa fara' +1.
- *
- * Vive solo nell'interfaccia. Sulla carta il codice e' nero su bianco,
- * come esce dalla stampante.
+ * Visualizes the increment window. The stable prefix stays muted while changing
+ * digits are highlighted consistently across gallery, editor and print flow.
+ * This is UI-only; printed codes remain plain black on white.
  */
 public class CodiceView extends JComponent {
 
@@ -72,10 +66,7 @@ public class CodiceView extends JComponent {
         }
     }
 
-    /**
-     * Disegna il codice e torna la larghezza occupata, cosi' chi lo usa
-     * dentro un altro componente sa dove continuare.
-     */
+    /** Draws the code and returns the occupied width for inline composition. */
     public static int disegna(Graphics2D g, int x, int baseline,
                               String prefisso, String finestra, Font f) {
         g.setFont(f);

@@ -9,6 +9,9 @@ import app.modello.Elemento;
 import app.modello.Etichetta;
 import app.modello.Serie;
 import app.modello.Tipo;
+import app.render.Disegno;
+import app.render.Misuratore;
+import app.render.Testo;
 import app.stile.Stile;
 import app.ui.comp.Bottone;
 import app.ui.comp.CodiceView;
@@ -19,12 +22,11 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GridLayout;
+import java.awt.image.BufferedImage;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -45,6 +47,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
     private boolean showLinkPicker;
     private boolean showSharedOptions;
     private boolean showQrOptions;
+    private boolean showTextLayout;
 
     public Proprieta(Runnable before, Runnable after) {
         this.before = before;
@@ -56,8 +59,12 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
     }
 
     @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
-    @Override public int getScrollableUnitIncrement(java.awt.Rectangle r, int o, int d) { return Stile.px(24); }
-    @Override public int getScrollableBlockIncrement(java.awt.Rectangle r, int o, int d) { return Stile.px(220); }
+    @Override public int getScrollableUnitIncrement(java.awt.Rectangle r, int o, int d) {
+        return Stile.px(24);
+    }
+    @Override public int getScrollableBlockIncrement(java.awt.Rectangle r, int o, int d) {
+        return Stile.px(220);
+    }
     @Override public boolean getScrollableTracksViewportWidth() { return true; }
     @Override public boolean getScrollableTracksViewportHeight() { return false; }
 
@@ -77,7 +84,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
                 add(Scheda.spazio(12));
             }
             if (element.tipo().scritto()) {
-                add(text(element));
+                add(text(label, element));
                 add(Scheda.spazio(12));
             }
             if (element.tipo() == Tipo.QR) {
@@ -104,7 +111,8 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         heading.setAlignmentX(Component.LEFT_ALIGNMENT);
         add(heading);
 
-        JTextArea hint = secondaryText("Trascinalo per spostarlo. Usa le maniglie blu per ridimensionarlo.");
+        JTextArea hint = secondaryText(
+                "Trascinalo per spostarlo. Usa le maniglie blu per ridimensionarlo.");
         hint.setBorder(BorderFactory.createEmptyBorder(Stile.px(6), 0, 0, 0));
         add(hint);
         revalidate();
@@ -150,7 +158,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
             card.nota("Lo chiederemo solo quando prepari la stampa.");
         }
 
-        JToggleButton behavior = choice(showContentOptions ? "Nascondi" : "Come cambia…",
+        JToggleButton behavior = choice(showContentOptions ? "Chiudi" : "Come cambia…",
                 showContentOptions);
         behavior.setName("content-behavior");
         behavior.addActionListener(e -> {
@@ -160,7 +168,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         card.largo(behavior);
 
         if (showContentOptions) {
-            card.riga("Durante la stampa", behaviorChoices(label, element, field, value));
+            card.riga("Durante la stampa", behaviorChoice(label, element, field, value));
             if (field.comportamento() == Comportamento.PROGRESSIVO) {
                 addSequenceControls(card, label, element, field);
             }
@@ -224,7 +232,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         final JComboBox<Integer> digits = new JComboBox<Integer>(options);
         digits.setSelectedItem(Integer.valueOf(series.cifre()));
         digits.setFont(Stile.normale());
-        digits.setPreferredSize(new Dimension(Stile.px(82), Stile.px(34)));
+        digits.setPreferredSize(new Dimension(Stile.px(120), Stile.px(36)));
         digits.addActionListener(e -> {
             if (!silent && digits.getSelectedItem() != null) {
                 mark();
@@ -236,44 +244,51 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         card.riga("Cifre che aumentano", digits);
     }
 
-    private Component behaviorChoices(final Etichetta label, final Elemento element,
-                                      final Campo field, final JTextField value) {
-        JPanel panel = compactGroup();
-        ButtonGroup group = new ButtonGroup();
-        Comportamento[] values = {
+    private Component behaviorChoice(final Etichetta label, final Elemento element,
+                                     final Campo field, final JTextField value) {
+        final String[] labels = {"Non cambia", "Aumenta", "Chiedi in stampa"};
+        final Comportamento[] values = {
             Comportamento.FISSO,
             Comportamento.PROGRESSIVO,
             Comportamento.CHIESTO
         };
-        String[] labels = {"Non cambia", "Aumenta", "Chiedi"};
+        final JComboBox<String> combo = new JComboBox<String>(labels);
+        combo.setName("content-behavior-choice");
+        combo.setFont(Stile.normale());
+        combo.setSelectedIndex(behaviorIndex(field.comportamento()));
+        combo.setPreferredSize(new Dimension(Stile.px(210), Stile.px(36)));
+        combo.addActionListener(e -> {
+            if (silent || combo.getSelectedIndex() < 0) return;
+            final Comportamento target = values[combo.getSelectedIndex()];
+            if (target == field.comportamento()) return;
 
-        for (int i = 0; i < values.length; i++) {
-            final Comportamento target = values[i];
-            JToggleButton button = choice(labels[i], field.comportamento() == target);
-            button.addActionListener(e -> {
-                if (!silent) {
+            if (target == Comportamento.PROGRESSIVO) {
+                try {
+                    int digits = field.serie() == null ? 3 : field.serie().cifre();
+                    Serie next = new Serie(value.getText().trim(), digits);
                     mark();
-                    if (target == Comportamento.PROGRESSIVO) {
-                        try {
-                            int digits = field.serie() == null ? 3 : field.serie().cifre();
-                            field.serie(new Serie(value.getText().trim(), digits));
-                        } catch (RuntimeException ex) {
-                            java.awt.Toolkit.getDefaultToolkit().beep();
-                            value.setToolTipText(ex.getMessage());
-                            return;
-                        }
-                    } else {
-                        field.comportamento(target);
-                    }
-                    showContentOptions = false;
-                    mostra(label, element);
-                    changed();
+                    field.serie(next);
+                } catch (RuntimeException ex) {
+                    java.awt.Toolkit.getDefaultToolkit().beep();
+                    value.setToolTipText(ex.getMessage());
+                    combo.setSelectedIndex(behaviorIndex(field.comportamento()));
+                    return;
                 }
-            });
-            group.add(button);
-            panel.add(button);
-        }
-        return panel;
+            } else {
+                mark();
+                field.comportamento(target);
+            }
+            showContentOptions = false;
+            mostra(label, element);
+            changed();
+        });
+        return combo;
+    }
+
+    private static int behaviorIndex(Comportamento behavior) {
+        if (behavior == Comportamento.PROGRESSIVO) return 1;
+        if (behavior == Comportamento.CHIESTO) return 2;
+        return 0;
     }
 
     private Component linkPicker(final Etichetta label, final Elemento element, Campo current) {
@@ -284,7 +299,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         combo.setFont(Stile.normale());
         combo.setRenderer(new CampoRenderer(label));
         combo.setPreferredSize(new Dimension(Stile.px(210), Stile.px(36)));
-        combo.setToolTipText("Scegli un contenuto gia' usato nell'etichetta");
+        combo.setToolTipText("Scegli un contenuto già usato nell'etichetta");
         combo.addActionListener(e -> {
             if (!silent && combo.getSelectedItem() != null) {
                 mark();
@@ -297,13 +312,14 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         return combo;
     }
 
-    private Component text(final Elemento element) {
+    private Component text(final Etichetta label, final Elemento element) {
         Scheda card = new Scheda("Testo");
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.riga("Allinea", alignment(element));
         card.riga("Righe", rows(element));
 
-        final JCheckBox separators = new JCheckBox("Mostra punti e simboli", element.mostraSeparatori());
+        final JCheckBox separators = new JCheckBox(
+                "Mostra punti e simboli", element.mostraSeparatori());
         separators.setOpaque(false);
         separators.setFont(Stile.piccolo());
         separators.setForeground(Stile.SUB1);
@@ -316,7 +332,147 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
             }
         });
         card.largo(separators);
+
+        final String[] parts = Testo.parti(label.contenuto(element, 0));
+        if (parts.length > 1) {
+            if (element.parteTesto() > 0) {
+                int current = Math.min(parts.length, element.parteTesto());
+                Stato partState = new Stato("Blocco " + current + " di " + parts.length,
+                        Stile.SUB1, Stile.MANTLE);
+                partState.setToolTipText(
+                        "Questo blocco mostra solo una parte. Il QR continua a usare il codice intero.");
+                card.largo(partState);
+            }
+
+            JToggleButton layout = choice(
+                    showTextLayout ? "Chiudi disposizione" : "Organizza testo…", showTextLayout);
+            layout.setName("text-layout");
+            layout.addActionListener(e -> {
+                showTextLayout = layout.isSelected();
+                mostra(label, element);
+            });
+            card.largo(layout);
+
+            if (showTextLayout) {
+                card.riga("Mostra", textPartChoice(label, element, parts));
+                if (element.parteTesto() == 0) {
+                    Bottone split = Bottone.normale("Dividi in blocchi");
+                    split.setName("split-text-parts");
+                    split.setToolTipText(
+                            "Crea blocchi spostabili che restano collegati allo stesso codice del QR.");
+                    split.addActionListener(e -> {
+                        if (!silent) {
+                            mark();
+                            splitText(label, element, parts);
+                            showTextLayout = false;
+                            mostra(label, element);
+                            changed();
+                        }
+                    });
+                    card.largo(split);
+                }
+            }
+        }
         return card;
+    }
+
+    private Component textPartChoice(final Etichetta label, final Elemento element,
+                                     final String[] parts) {
+        String[] options = new String[parts.length + 1];
+        options[0] = "Codice intero";
+        for (int i = 0; i < parts.length; i++) {
+            options[i + 1] = (i + 1) + " · " + abbreviate(parts[i], 20);
+        }
+        final JComboBox<String> combo = new JComboBox<String>(options);
+        combo.setName("text-part");
+        combo.setFont(Stile.normale());
+        combo.setSelectedIndex(Math.max(0, Math.min(parts.length, element.parteTesto())));
+        combo.setPreferredSize(new Dimension(Stile.px(210), Stile.px(36)));
+        combo.addActionListener(e -> {
+            if (!silent && combo.getSelectedIndex() >= 0
+                    && combo.getSelectedIndex() != element.parteTesto()) {
+                mark();
+                element.parteTesto(combo.getSelectedIndex());
+                if (element.parteTesto() > 0) element.mostraSeparatori(false);
+                mostra(label, element);
+                changed();
+            }
+        });
+        return combo;
+    }
+
+    private static String abbreviate(String text, int max) {
+        if (text == null) return "";
+        if (text.length() <= max) return text;
+        return text.substring(0, Math.max(1, max - 1)) + "…";
+    }
+
+    /** Splits presentation only; every generated block keeps the same source reference. */
+    private static void splitText(Etichetta label, Elemento element, String[] parts) {
+        if (parts == null || parts.length < 2 || element.parteTesto() != 0) return;
+
+        Elemento source = element.copia();
+        double gap = .8;
+        double rowGap = .6;
+        double left = source.x();
+        double available = Math.max(1.0, label.larghezza() - left);
+        double requested = available;
+        double[] widths = measuredBlockWidths(parts, source, requested);
+        int rows = 1;
+        double rowWidth = 0;
+        for (int i = 0; i < parts.length; i++) {
+            if (rowWidth > 0 && rowWidth + gap + widths[i] > requested + .001) {
+                rows++;
+                rowWidth = widths[i];
+            } else {
+                rowWidth += (rowWidth > 0 ? gap : 0) + widths[i];
+            }
+        }
+
+        double rowHeight = Math.max(2.0, source.corpo() * 1.25);
+        double totalHeight = rows * rowHeight + (rows - 1) * rowGap;
+        double startY = Math.min(source.y(), Math.max(0, label.altezza() - totalHeight));
+        double cursorX = left;
+        double cursorY = startY;
+
+        for (int i = 0; i < parts.length; i++) {
+            if (cursorX > left && cursorX + widths[i] > left + requested + .001) {
+                cursorX = left;
+                cursorY += rowHeight + rowGap;
+            }
+
+            Elemento target = i == 0 ? element : source.copia();
+            target.nome(source.nome() + " " + (i + 1));
+            target.parteTesto(i + 1);
+            target.mostraSeparatori(false);
+            target.massimoRighe(1);
+            target.righePreferite(1);
+            target.allineamento(0);
+            target.larghezza(widths[i]);
+            target.x(cursorX);
+            target.y(cursorY);
+            cursorX += widths[i] + gap;
+            if (i > 0) label.aggiungi(target);
+        }
+    }
+
+    /** Measures split blocks with the same font metrics used by the renderer. */
+    private static double[] measuredBlockWidths(String[] parts, Elemento source,
+                                                double maximumWidth) {
+        double[] widths = new double[parts.length];
+        BufferedImage image = new BufferedImage(8, 8, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            Misuratore measurer = Disegno.misuratore(graphics, 10);
+            for (int i = 0; i < parts.length; i++) {
+                double measured = measurer.larghezza(
+                        parts[i], source.corpo(), source.grassetto()) + 1.0;
+                widths[i] = Math.min(maximumWidth, Math.max(3.0, measured));
+            }
+        } finally {
+            graphics.dispose();
+        }
+        return widths;
     }
 
     private Component alignment(final Elemento element) {
@@ -325,7 +481,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         combo.setName("text-alignment");
         combo.setFont(Stile.normale());
         combo.setSelectedIndex(Math.max(0, Math.min(2, element.allineamento())));
-        combo.setPreferredSize(new Dimension(Stile.px(150), Stile.px(34)));
+        combo.setPreferredSize(new Dimension(Stile.px(150), Stile.px(36)));
         combo.addActionListener(e -> {
             if (!silent && combo.getSelectedIndex() >= 0) {
                 mark();
@@ -342,7 +498,7 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         combo.setName("text-rows");
         combo.setFont(Stile.normale());
         combo.setSelectedIndex(Math.max(0, Math.min(3, element.righePreferite())));
-        combo.setPreferredSize(new Dimension(Stile.px(150), Stile.px(34)));
+        combo.setPreferredSize(new Dimension(Stile.px(150), Stile.px(36)));
         combo.addActionListener(e -> {
             if (!silent && combo.getSelectedIndex() >= 0) {
                 mark();
@@ -379,11 +535,12 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
             card.largo(new Stato("Ingrandisci il QR", Stile.PESCA, Stile.PESCA_SOFT));
             card.nota("Allarga il QR trascinando una maniglia blu.");
         } else {
-            card.largo(new Stato("Serve piu' spazio bianco", Stile.PESCA, Stile.PESCA_SOFT));
-            card.nota("Spostalo un po' piu' lontano dai bordi.");
+            card.largo(new Stato("Serve più spazio bianco", Stile.PESCA, Stile.PESCA_SOFT));
+            card.nota("Spostalo un po' più lontano dai bordi.");
         }
 
-        JToggleButton options = choice(showQrOptions ? "Nascondi opzioni QR" : "Opzioni QR…", showQrOptions);
+        JToggleButton options = choice(
+                showQrOptions ? "Chiudi opzioni QR" : "Opzioni QR…", showQrOptions);
         options.addActionListener(e -> {
             showQrOptions = options.isSelected();
             mostra(label, element);
@@ -391,10 +548,11 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         card.largo(options);
 
         if (showQrOptions) {
-            final JComboBox<Correzione> correction = new JComboBox<Correzione>(Correzione.values());
+            final JComboBox<Correzione> correction =
+                    new JComboBox<Correzione>(Correzione.values());
             correction.setSelectedItem(element.correzione());
             correction.setFont(Stile.normale());
-            correction.setPreferredSize(new Dimension(Stile.px(120), Stile.px(34)));
+            correction.setPreferredSize(new Dimension(Stile.px(150), Stile.px(36)));
             correction.addActionListener(e -> {
                 if (!silent) {
                     mark();
@@ -449,8 +607,8 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         });
         card.largo(rotate);
 
-        JToggleButton precision = choice(showPrecision ? "Nascondi misure" : "Misure precise…",
-                showPrecision);
+        JToggleButton precision = choice(
+                showPrecision ? "Chiudi misure" : "Misure precise…", showPrecision);
         precision.addActionListener(e -> {
             showPrecision = precision.isSelected();
             mostra(label, element);
@@ -511,20 +669,8 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         return row;
     }
 
-    private static JPanel compactGroup() {
-        JPanel panel = new JPanel(new GridLayout(1, 0, Stile.px(4), 0));
-        panel.setOpaque(false);
-        return panel;
-    }
-
     private static JToggleButton choice(String text, boolean selected) {
-        JToggleButton button = new JToggleButton(text);
-        button.setFont(Stile.minuscolo());
-        button.setSelected(selected);
-        button.setFocusPainted(false);
-        button.setMargin(new java.awt.Insets(
-                Stile.px(6), Stile.px(7), Stile.px(6), Stile.px(7)));
-        return button;
+        return new DisclosureButton(text, selected);
     }
 
     private static void prepareField(JTextField field) {
@@ -559,11 +705,13 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
     private void applyValue(Etichetta label, Campo field, JTextField input) {
         String value = input.getText().trim();
         try {
-            mark();
             if (field.comportamento() == Comportamento.PROGRESSIVO) {
                 int digits = field.serie() == null ? 3 : field.serie().cifre();
-                field.serie(new Serie(value, digits));
+                Serie next = new Serie(value, digits);
+                mark();
+                field.serie(next);
             } else {
+                mark();
                 field.valore(value);
             }
             changed();
@@ -627,6 +775,48 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
         }
     }
 
+    /** Lightweight disclosure control that renders consistently on Windows and Linux. */
+    private static final class DisclosureButton extends JToggleButton {
+        DisclosureButton(String text, boolean selected) {
+            super(text, selected);
+            setFont(Stile.piccolo());
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setOpaque(false);
+            setRolloverEnabled(true);
+            setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        }
+
+        @Override public Dimension getPreferredSize() {
+            Dimension d = super.getPreferredSize();
+            return new Dimension(Math.max(Stile.px(120), d.width + Stile.px(20)), Stile.px(36));
+        }
+
+        @Override protected void paintComponent(Graphics g) {
+            Graphics2D g2 = Stile.liscio(g);
+            try {
+                boolean selected = isSelected();
+                boolean over = getModel().isRollover();
+                boolean down = getModel().isPressed();
+                Color fill = selected ? Stile.BLU_SOFT
+                        : (down ? Stile.MANTLE : (over ? Color.WHITE : Stile.BASE));
+                Color border = selected || isFocusOwner() ? Stile.BLU : Stile.S1;
+                Color text = selected ? Stile.BLU : Stile.TESTO;
+                Stile.riquadro(g2, 1, 1, getWidth() - 2, getHeight() - 2,
+                        Stile.px(9), fill, border);
+                g2.setFont(getFont());
+                g2.setColor(isEnabled() ? text : Stile.OV0);
+                int width = g2.getFontMetrics().stringWidth(getText());
+                int baseline = (getHeight() + g2.getFontMetrics().getAscent()
+                        - g2.getFontMetrics().getDescent()) / 2;
+                g2.drawString(getText(), Math.max(Stile.px(8), (getWidth() - width) / 2), baseline);
+            } finally {
+                g2.dispose();
+            }
+        }
+    }
+
     private static final class Stato extends JLabel {
         private final Color background;
 
@@ -635,7 +825,8 @@ public class Proprieta extends JPanel implements javax.swing.Scrollable {
             this.background = background;
             setFont(Stile.piccolo().deriveFont(java.awt.Font.BOLD));
             setForeground(foreground);
-            setBorder(BorderFactory.createEmptyBorder(7, 9, 7, 9));
+            setBorder(BorderFactory.createEmptyBorder(
+                    Stile.px(7), Stile.px(9), Stile.px(7), Stile.px(9)));
         }
 
         @Override protected void paintComponent(Graphics g) {

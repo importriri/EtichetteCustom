@@ -1,6 +1,6 @@
 package app.modello;
 
-/** Che cosa e' un elemento sulla carta. */
+/** Type of visual element placed on a label. */
 public enum Tipo {
 
     TESTO("Testo", "T"),
@@ -25,7 +25,7 @@ public enum Tipo {
         return glifo;
     }
 
-    /** Vero se l'elemento e' una scritta e quindi puo' andare a capo. */
+    /** Returns true for text elements that can wrap onto multiple lines. */
     public boolean scritto() {
         return this == TESTO || this == CODICE;
     }

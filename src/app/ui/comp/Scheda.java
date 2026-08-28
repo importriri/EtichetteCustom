@@ -14,7 +14,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 
-/** Scheda coerente usata per proprietà e dati del giro. */
+/** Shared card surface used by inspector and print-run data. */
 public class Scheda extends JPanel {
     private final String titolo;
     private final JPanel dentro = new JPanel(new GridBagLayout());

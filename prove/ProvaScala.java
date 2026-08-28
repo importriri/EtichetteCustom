@@ -46,7 +46,7 @@ public final class ProvaScala {
             }
         });
         System.out.println(ok + " scale checks, " + ko + " failed at " + size + "px base");
-        if (ko != 0) System.exit(1);
+        System.exit(ko == 0 ? 0 : 1);
     }
 
     private static void run() throws Exception {

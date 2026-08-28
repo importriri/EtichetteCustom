@@ -17,12 +17,8 @@ import java.io.File;
 import java.util.List;
 
 /**
- * Stampa ed esportazione.
- *
- * Il controllo che vale piu' di tutti: la pagina uno e la pagina due di
- * un giro progressivo devono essere DIVERSE. Se qualcuno rompe il legame
- * fra il numero di copia e il codice disegnato, la stampante sputa dodici
- * etichette identiche e nessuno se ne accorge fino al magazzino.
+ * Printing and export regression coverage. Consecutive pages in a progressive
+ * run must render different payloads while repeat rendering stays deterministic.
  */
 public final class ProvaStampa {
 
@@ -36,35 +32,35 @@ public final class ProvaStampa {
     }
 
     private static void stampa() throws Exception {
-        Prove.suite("Stampa - pagine e misure");
+        Prove.suite("Print pages and dimensions");
 
         Etichetta eti = Libreria.articolo();
         StampaGiro giro = new StampaGiro(eti, QR, 12);
-        Prove.uguale("dodici copie, dodici pagine", 12, giro.getNumberOfPages());
+        Prove.uguale("twelve copies produce twelve pages", 12, giro.getNumberOfPages());
 
         PageFormat f = giro.getPageFormat(0);
-        Prove.vicino("la pagina e' larga quanto l'etichetta, in punti",
+        Prove.vicino("page width matches the label in points",
                 50 * 72 / 25.4, f.getWidth(), 0.01);
-        Prove.vicino("e alta quanto l'etichetta", 30 * 72 / 25.4, f.getHeight(), 0.01);
-        Prove.vicino("l'area stampabile parte dall'angolo", 0, f.getImageableX(), 0.01);
-        Prove.vicino("e non lascia margini in larghezza",
+        Prove.vicino("page height matches the label", 30 * 72 / 25.4, f.getHeight(), 0.01);
+        Prove.vicino("printable area starts at the page origin", 0, f.getImageableX(), 0.01);
+        Prove.vicino("printable area has no horizontal margins",
                 f.getWidth(), f.getImageableWidth(), 0.01);
-        Prove.vicino("ne' in altezza", f.getHeight(), f.getImageableHeight(), 0.01);
+        Prove.vicino("printable area has no vertical margins", f.getHeight(), f.getImageableHeight(), 0.01);
 
         BufferedImage prima = pagina(giro, f, 0);
         BufferedImage seconda = pagina(giro, f, 1);
-        Prove.vero("la prima pagina ha inchiostro", ProvaDisegno.quotaInchiostro(prima) > 0.01);
-        Prove.vero("la seconda pagina e' DIVERSA dalla prima: il codice avanza",
+        Prove.vero("the first page contains ink", ProvaDisegno.quotaInchiostro(prima) > 0.01);
+        Prove.vero("the second page differs because the sequence advances",
                 !ProvaDisegno.identiche(prima, seconda));
 
         BufferedImage ancoraPrima = pagina(giro, f, 0);
-        Prove.vero("ristampare la stessa pagina da lo stesso risultato",
+        Prove.vero("rendering the same page again is deterministic",
                 ProvaDisegno.identiche(prima, ancoraPrima));
 
-        Prove.uguale("oltre l'ultima pagina non c'e' niente da stampare",
+        Prove.uguale("pages beyond the run are rejected",
                 Printable.NO_SUCH_PAGE, giro.print(nuovoContesto(10, 10), f, 12));
 
-        Prove.esplode("un giro da zero copie non ha senso",
+        Prove.esplode("a zero-copy print run is rejected",
                 IllegalArgumentException.class, new Runnable() {
                     @Override
                     public void run() {
@@ -74,16 +70,16 @@ public final class ProvaStampa {
     }
 
     private static void esporta() throws Exception {
-        Prove.suite("Esporta - PNG, SVG, PDF");
+        Prove.suite("PNG, SVG and PDF export");
 
         Etichetta eti = Libreria.articolo();
         File dove = ProvaArchivio.temporanea("export");
 
         BufferedImage png = Png.immagine(eti, QR, 600, 0);
-        Prove.uguale("a 600 dpi un'etichetta da 50 mm e' larga 1181 px", 1181, png.getWidth());
-        Prove.uguale("e alta 709 px", 709, png.getHeight());
-        Prove.vero("con dell'inchiostro sopra", ProvaDisegno.quotaInchiostro(png) > 0.01);
-        Prove.esplode("una risoluzione assurda viene rifiutata",
+        Prove.uguale("a 50 mm label is 1181 px wide at 600 dpi", 1181, png.getWidth());
+        Prove.uguale("the 30 mm height is 709 px at 600 dpi", 709, png.getHeight());
+        Prove.vero("the PNG contains rendered ink", ProvaDisegno.quotaInchiostro(png) > 0.01);
+        Prove.esplode("an unreasonable export resolution is rejected",
                 IllegalArgumentException.class, new Runnable() {
                     @Override
                     public void run() {
@@ -92,34 +88,34 @@ public final class ProvaStampa {
                 });
 
         String svg = Svg.testo(eti, 0);
-        Prove.vero("l'SVG si dichiara tale", svg.startsWith("<?xml"));
-        Prove.vero("misura in millimetri, come l'etichetta vera",
+        Prove.vero("SVG output starts as XML", svg.startsWith("<?xml"));
+        Prove.vero("SVG dimensions are expressed in millimetres",
                 svg.contains("width=\"50mm\"") && svg.contains("height=\"30mm\""));
-        Prove.vero("il codice progressivo e' scritto dentro, come testo",
+        Prove.vero("progressive readable text is present in SVG",
                 svg.contains("584700349"));
-        Prove.vero("il QR e' fatto di rettangoli, non di un'immagine",
+        Prove.vero("QR output stays vector in SVG",
                 svg.contains("<rect") && !svg.contains("<image"));
-        Prove.vero("le due righe del codice ci sono entrambe",
+        Prove.vero("both readable text lines are present",
                 conta(svg, "<tspan") >= 2);
 
         List<File> tuttiPng = Esportazione.esporta(new File(dove, "giro.png"), eti, QR,
                 Esportazione.Come.PNG, 3, 300);
-        Prove.uguale("tre etichette, tre PNG", 3, tuttiPng.size());
-        Prove.vero("numerati in ordine", tuttiPng.get(0).getName().equals("giro-1.png"));
-        Prove.vero("e scritti davvero", tuttiPng.get(2).length() > 100);
+        Prove.uguale("three labels produce three PNG files", 3, tuttiPng.size());
+        Prove.vero("PNG files are numbered in order", tuttiPng.get(0).getName().equals("giro-1.png"));
+        Prove.vero("the final PNG is actually written", tuttiPng.get(2).length() > 100);
 
         List<File> pdf = Esportazione.esporta(new File(dove, "giro.pdf"), eti, QR,
                 Esportazione.Come.PDF, 3, 300);
-        Prove.uguale("il PDF e' uno solo, con dentro tutto il giro", 1, pdf.size());
+        Prove.uguale("one PDF contains the complete run", 1, pdf.size());
         byte[] dentro = byteDi(pdf.get(0));
-        Prove.vero("comincia come un PDF", new String(dentro, 0, 8, "ISO-8859-1")
+        Prove.vero("output starts with the PDF signature", new String(dentro, 0, 8, "ISO-8859-1")
                 .startsWith("%PDF-1."));
         String testa = new String(dentro, "ISO-8859-1");
-        Prove.vero("dichiara tre pagine", testa.contains("/Count 3"));
-        Prove.vero("le pagine misurano l'etichetta in punti",
+        Prove.vero("PDF declares three pages", testa.contains("/Count 3"));
+        Prove.vero("PDF page dimensions match the label",
                 testa.contains("/MediaBox[0 0 141.732 85.039]"));
-        Prove.vero("l'immagine e' compressa", testa.contains("/FlateDecode"));
-        Prove.vero("e chiude come si deve", testa.trim().endsWith("%%EOF"));
+        Prove.vero("PDF image data is compressed", testa.contains("/FlateDecode"));
+        Prove.vero("PDF ends with the EOF marker", testa.trim().endsWith("%%EOF"));
     }
 
     private static BufferedImage pagina(StampaGiro giro, PageFormat f, int indice) {

@@ -17,7 +17,7 @@ import java.util.List;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
-/** Finestra principale: vetrina, preparazione del giro ed editor del layout. */
+/** Main window hosting the gallery, print preparation and layout editor. */
 public class Cornice extends JFrame {
     private final CardLayout carte = new CardLayout();
     private final JPanel radice = new JPanel(carte);

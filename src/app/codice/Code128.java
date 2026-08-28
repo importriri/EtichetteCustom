@@ -4,18 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Code 128: il barcode lineare che regge lettere, cifre e punteggiatura.
+ * Code 128 encoder for letters, digits and punctuation.
  *
- * Sceglie da solo fra il set B (testo) e il set C (coppie di cifre), che
- * dimezza la larghezza sui codici numerici lunghi. Su un'etichetta da
- * 62 mm la differenza fra i due si vede a occhio.
+ * It switches automatically between set B and set C, using digit pairs to
+ * reduce the width of long numeric runs.
  */
 public final class Code128 {
 
     /**
-     * Le larghezze di barre e spazi per ogni valore: sei cifre, che
-     * si leggono barra-spazio-barra-spazio-barra-spazio. Il 106 (stop)
-     * ne ha sette perche' chiude con una barra in piu'.
+     * Bar/space widths for each symbol value. Normal symbols contain six runs;
+     * stop value 106 has seven because it ends with an extra bar.
      */
     private static final String[] DISEGNI = {
         "212222", "222122", "222221", "121223", "121322", "131222", "122213", "122312",
@@ -42,10 +40,7 @@ public final class Code128 {
 
     private Code128() { }
 
-    /**
-     * Le larghezze dei tratti, in moduli, a partire da una barra:
-     * il primo numero e' una barra, il secondo uno spazio, e cosi' via.
-     */
+    /** Run widths in modules, starting with a bar and alternating bar/space. */
     public static int[] tratti(String testo) {
         List<Integer> valori = valori(testo);
         StringBuilder disegno = new StringBuilder();
@@ -59,7 +54,7 @@ public final class Code128 {
         return out;
     }
 
-    /** Quanti moduli e' largo in tutto: serve per sapere se ci sta. */
+    /** Total width in modules, used to validate physical fit. */
     public static int moduli(String testo) {
         int somma = 0;
         for (int t : tratti(testo)) {
@@ -68,7 +63,7 @@ public final class Code128 {
         return somma;
     }
 
-    /** I valori simbolo, avvio e checksum e stop compresi. */
+    /** Symbol values including start, checksum and stop. */
     public static List<Integer> valori(String testo) {
         if (testo == null) {
             testo = "";
@@ -120,9 +115,8 @@ public final class Code128 {
     }
 
     /**
-     * Il set C conviene su una corsa di cifre abbastanza lunga: quattro
-     * all'inizio o alla fine, sei in mezzo (perche' li' si pagano due
-     * cambi di set invece di uno).
+     * Set C is worthwhile for runs of at least four digits at an edge or six
+     * digits in the middle, where two set switches must be paid for.
      */
     private static boolean convieneC(String s, int da, boolean inizio) {
         int quante = 0;
@@ -130,7 +124,7 @@ public final class Code128 {
             quante++;
         }
         if (quante % 2 != 0) {
-            quante--;                    /* una corsa dispari va spezzata comunque */
+            quante--;                    /* an odd run must leave one digit for set B */
         }
         boolean fino = da + quante >= s.length();
         int soglia = inizio || fino ? 4 : 6;

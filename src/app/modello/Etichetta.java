@@ -6,7 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Carta, dati ed elementi che compongono un modello di etichetta. */
+/** Label size, content sources and visual elements. */
 public class Etichetta {
 
     private String nome;
@@ -14,7 +14,7 @@ public class Etichetta {
     private double altezza;
     private final List<Campo> campi = new ArrayList<Campo>();
     private final List<Elemento> elementi = new ArrayList<Elemento>();
-    /* Compatibilita' con i file v1, che avevano un solo progressivo globale. */
+    /* Compatibility with v1 files, which stored one global sequence. */
     private Serie serieInAttesa;
 
     public Etichetta(String nome, double larghezza, double altezza) {
@@ -28,7 +28,7 @@ public class Etichetta {
     public double larghezza() { return larghezza; }
     public double altezza() { return altezza; }
 
-    /** Scambia i lati; il rimappaggio degli elementi appartiene all'editor. */
+    /** Swaps label sides; element remapping belongs to the editor. */
     public void scambiaLati() {
         double t = larghezza;
         larghezza = altezza;
@@ -61,7 +61,7 @@ public class Etichetta {
     public Etichetta aggiungi(Elemento e) { if (e != null) elementi.add(e); return this; }
     public void rimuovi(Elemento e) { elementi.remove(e); }
 
-    /** Compatibilita' con il vecchio modello a progressivo singolo. */
+    /** Compatibility helper for the former single-sequence model. */
     public Serie serie() {
         for (Campo c : campi) {
             if (c.comportamento() == Comportamento.PROGRESSIVO && c.serie() != null) {
@@ -89,7 +89,7 @@ public class Etichetta {
 
     public Etichetta serie(String nomeCampo, Serie s) {
         Campo c = campo(nomeCampo);
-        if (c == null) throw new IllegalArgumentException("campo sconosciuto: " + nomeCampo);
+        if (c == null) throw new IllegalArgumentException("unknown field: " + nomeCampo);
         c.serie(s);
         return this;
     }
@@ -111,7 +111,7 @@ public class Etichetta {
         try {
             c.serie(new Serie(c.serie().codice(c.serie().prossimo()), cifre));
             return true;
-        } catch (RuntimeException nonSiPuo) {
+        } catch (RuntimeException ignored) {
             return false;
         }
     }
@@ -122,7 +122,7 @@ public class Etichetta {
         try {
             c.serie(new Serie(c.valore(), cifre));
             return true;
-        } catch (RuntimeException nonNumerico) {
+        } catch (RuntimeException ignored) {
             return false;
         }
     }
@@ -133,7 +133,7 @@ public class Etichetta {
         return out;
     }
 
-    /** Solo i dati effettivamente usati da almeno un elemento, nell'ordine del layout. */
+    /** Returns content sources that are actually referenced, in layout order. */
     public List<Campo> campiUsati() {
         List<Campo> out = new ArrayList<Campo>();
         Set<String> visti = new LinkedHashSet<String>();
@@ -154,7 +154,7 @@ public class Etichetta {
         return radice + " " + n;
     }
 
-    /** Separa solo l'elemento indicato dal dato che condivideva con altri. */
+    /** Detaches only the selected element from a source shared with other elements. */
     public Campo rendiIndipendente(Elemento e) {
         if (e == null || e.campo() == null) return null;
         Campo originale = campo(e.campo());
@@ -181,7 +181,7 @@ public class Etichetta {
         return out;
     }
 
-    /** Dati che finiscono materialmente in un QR, barcode o codice leggibile. */
+    /** Returns sources that materially feed QR, barcode or readable-code elements. */
     public List<Campo> campiCodice() {
         List<Campo> out = new ArrayList<Campo>();
         Set<String> visti = new LinkedHashSet<String>();

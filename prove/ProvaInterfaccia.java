@@ -29,6 +29,8 @@ public final class ProvaInterfaccia {
     private static int ok;
     private static int ko;
 
+    private ProvaInterfaccia() { }
+
     public static void main(String[] args) throws Exception {
         SwingUtilities.invokeAndWait(new Runnable() {
             @Override public void run() {
@@ -40,7 +42,7 @@ public final class ProvaInterfaccia {
             }
         });
         System.out.println(ok + " UI checks, " + ko + " failed");
-        if (ko != 0) System.exit(1);
+        System.exit(ko == 0 ? 0 : 1);
     }
 
     private static void run() throws Exception {
@@ -48,9 +50,11 @@ public final class ProvaInterfaccia {
         Etichetta label = new Etichetta("Etichetta con nome volutamente lungo", 50, 30);
         Campo primary = new Campo("codice", Comportamento.PROGRESSIVO, "CLIENTE-LUNGO-000001");
         primary.serie(new Serie("CLIENTE-LUNGO-000001", 6));
-        Campo secondary = new Campo("codice 2", Comportamento.PROGRESSIVO, "ALTRO-PROGRESSIVO-0900");
+        Campo secondary = new Campo("codice 2", Comportamento.PROGRESSIVO,
+                "ALTRO-PROGRESSIVO-0900");
         secondary.serie(new Serie("ALTRO-PROGRESSIVO-0900", 4));
-        Campo lot = new Campo("lotto produzione molto lungo", Comportamento.CHIESTO, "LOTTO-2026-08-25-A");
+        Campo lot = new Campo("lotto produzione molto lungo", Comportamento.CHIESTO,
+                "LOTTO-2026-08-25-A");
         label.aggiungi(primary).aggiungi(secondary).aggiungi(lot);
 
         Elemento qr = new Elemento("QR cliente principale", Tipo.QR, "codice", 2.5, 2.5, 12);
@@ -58,11 +62,9 @@ public final class ProvaInterfaccia {
         label.aggiungi(new Elemento("Testo cliente", Tipo.CODICE, "codice", 17, 3, 28));
         label.aggiungi(new Elemento("QR secondario", Tipo.QR, "codice 2", 2.5, 16, 10));
 
-        Proprieta inspector = new Proprieta(new Runnable() {
-            @Override public void run() { }
-        }, new Runnable() {
-            @Override public void run() { }
-        });
+        Proprieta inspector = new Proprieta(
+                new Runnable() { @Override public void run() { } },
+                new Runnable() { @Override public void run() { } });
         inspector.mostra(label, qr);
         inspector.setSize(new Dimension(Stile.px(286), Stile.px(780)));
         layout(inspector);
@@ -79,7 +81,12 @@ public final class ProvaInterfaccia {
         if (behavior != null) behavior.doClick();
         layout(inspector);
         allInspector = components(inspector);
-        check("progressive digit choice appears only on request", countCombos(allInspector) == 1);
+        JComboBox<?> behaviorChoice = findNamedCombo(allInspector, "content-behavior-choice");
+        check("behavior chooser appears only on request",
+                behaviorChoice != null && behaviorChoice.getItemCount() == 3);
+        check("behavior chooser keeps readable width",
+                behaviorChoice != null && behaviorChoice.getWidth() >= Stile.px(180));
+        check("progressive digit choice appears only on request", countCombos(allInspector) == 2);
 
         inspector.mostra(label, qr);
         inspector.setSize(new Dimension(Stile.px(286), Stile.px(780)));
@@ -130,10 +137,17 @@ public final class ProvaInterfaccia {
 
     private static int countCombos(List<Component> all) {
         int count = 0;
-        for (Component component : all) {
-            if (component instanceof JComboBox) count++;
-        }
+        for (Component component : all) if (component instanceof JComboBox) count++;
         return count;
+    }
+
+    private static JComboBox<?> findNamedCombo(List<Component> all, String name) {
+        for (Component component : all) {
+            if (component instanceof JComboBox && name.equals(component.getName())) {
+                return (JComboBox<?>) component;
+            }
+        }
+        return null;
     }
 
     private static AbstractButton findNamedButton(List<Component> all, String name) {

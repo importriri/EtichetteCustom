@@ -45,7 +45,7 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 
-/** Finestre secondarie per dati, impostazioni, export e conferme. */
+/** Secondary windows for data, settings, export and confirmations. */
 public final class Finestre {
     private static final String GITHUB = "https://github.com/importriri/etichette-custom";
 
@@ -64,7 +64,7 @@ public final class Finestre {
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION;
     }
 
-    /* Le modifiche restano locali finché l’operatore non conferma. */
+    /* Keep edits local until the operator confirms them. */
     public static void campi(Component sopra, Etichetta eti) {
         final List<Campo> originali = new ArrayList<Campo>(eti.campi());
         final List<JComboBox<Comportamento>> comportamenti = new ArrayList<JComboBox<Comportamento>>();
@@ -401,7 +401,7 @@ public final class Finestre {
         return nuovo.isEmpty() ? null : nuovo;
     }
 
-    /** Conferma i dati del giro senza consumare alcun progressivo. */
+    /** Confirms run data without consuming any sequence value. */
     public static boolean stampa(Component sopra, Etichetta eti, int copie) {
         try {
             eti.validaGiro(copie);

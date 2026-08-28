@@ -1,20 +1,18 @@
 package app.codice;
 
 /**
- * Quanto danno regge un QR prima di diventare illeggibile.
- *
- * In reparto un'etichetta si sporca, si graffia, prende olio: alzare la
- * correzione costa moduli (quindi spazio) ma compra letture in piu'.
+ * QR error-correction level. Higher levels consume more modules but tolerate
+ * more dirt, scratches and physical damage on production labels.
  */
 public enum Correzione {
 
-    /** ~7% di recupero. Solo se lo spazio e' tiranno e l'etichetta sta al chiuso. */
+    /** About 7% recovery; useful when space is extremely limited. */
     L(0, 1, "L \u2014 bassa"),
-    /** ~15%. Il compromesso normale. */
+    /** About 15%; the normal compromise. */
     M(1, 0, "M \u2014 media"),
-    /** ~25%. */
+    /** About 25% recovery. */
     Q(2, 3, "Q \u2014 alta"),
-    /** ~30%. Etichette che prendono botte. */
+    /** About 30% recovery for labels exposed to damage. */
     H(3, 2, "H \u2014 massima");
 
     private final int indice;

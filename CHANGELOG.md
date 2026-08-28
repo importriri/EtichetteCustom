@@ -1,58 +1,42 @@
 # Changelog
 
+## 2.0.3 — 2026-08-28
+
+- Keep logical code groups intact when readable text wraps on narrow layouts.
+- Add movable text blocks derived from one shared source, so readable code parts can be arranged freely while QR and barcode payloads remain exact.
+- Improve inspector control sizing and rendering across Linux and Windows.
+- Strengthen graphical regression coverage for text layout, control clipping and shared-source preservation.
+- Extend the label format without breaking older v3/v4 files.
+
 ## 2.0.2 — 2026-08-27
 
-- Rework the editor around progressive disclosure so secondary controls appear only when the selected element needs them.
-- Replace the four permanent rotation buttons with one **Rotate 90°** action.
-- Replace permanent alignment and line-count button groups with compact choosers.
-- Keep exact X/Y/size controls behind **Precise measurements** and QR correction details behind **QR options**.
-- Collapse shared-content management behind a single `QR + Text` control; separating the selected element is shown only after opening it.
-- Keep sequence-window configuration in the editor and remove it from routine print preparation.
-- Simplify print preparation to the current run: starting values, requested values, outgoing range, copies and the print action.
-- Remove the duplicate new-label affordance from the gallery, hide search for small galleries and hide print history until a run exists.
-- Start the layout editor with no element selected so the inspector stays quiet until the user chooses something.
-- Move label-orientation and advanced-data actions into one overflow menu and reduce persistent editor chrome.
-- Cap editor side-panel widths at large UI scales so the canvas keeps useful working space on Windows HiDPI desktops.
-- Tighten the repository presentation around the same concise structure used by AutoFillSuite.
-- Refresh the README demo and screenshots from the verified Windows graphical audit.
-- Expand graphical audits to protect the simplified first-run gallery, contextual inspector and print flow.
+- Simplify the editor around contextual controls and direct manipulation.
+- Keep secondary measurements, QR settings and content behavior hidden until needed.
+- Streamline gallery and print preparation for the normal production path.
+- Improve large-scale and Windows HiDPI layout behavior.
+- Refresh repository media and expand native Windows graphical verification.
 
 ## 2.0.1 — 2026-08-27
 
-- Rework the layout editor around direct manipulation: drag elements to move them and drag visible corner handles to resize them.
-- Keep QR resize square automatically so a quick mouse gesture cannot distort its geometry.
-- Hide X/Y/width/font measurements by default; precise millimetre controls remain available only when explicitly requested.
-- Remove `JSpinner` from the primary editor to avoid inconsistent Windows delegates and make routine editing easier to scan.
-- Add text alignment, automatic/1/2/3-line layout, separator visibility and 0/90/180/270 degree rotation.
-- Keep punctuation hiding presentation-only: QR and barcode data always retain the exact source string.
-- Improve automatic wrapping so long codes prefer natural separators, balance lines and never silently lose characters.
-- Increase editor-grid contrast and keep the grid application-rendered rather than dependent on the operating-system theme.
-- Make primary editor controls responsive so common Windows UI scales do not clip the rightmost choices.
-- Add native Windows CI alongside Linux, compiling for Java 8 and running the application/tests on Temurin 21.
-- Run graphical editor audits at four UI scales approximating 100%, 125%, 150% and 200%, retaining PNG evidence as CI artifacts.
-- Keep the v2 storage location and first-run behaviour: a new archive contains one example label and subsequent starts load only saved user labels.
+- Add direct move and resize editing for label elements.
+- Add readable-text alignment, line layout, separator visibility and rotation controls.
+- Keep QR/barcode payloads independent from readable-text presentation.
+- Improve long-code wrapping and grid visibility.
+- Add native Windows CI and retained graphical audit evidence.
+- Start new installations with one editable example label.
 
 ## 2.0.0 — 2026-08-27
 
-- Start from a fresh v2 data directory so production PCs do not inherit labels from older versions.
-- Show one simple 50 x 30 mm example label on first run instead of a gallery of predefined templates.
-- Keep the exact source value for QR/barcode data while allowing the human-readable text to hide punctuation/separators.
-- Persist text presentation options in the label format while remaining able to read older files.
-- Support left, center and right text alignment in the renderer.
-- Keep text wrapping capped at three lines and preserve existing 0/90/180/270 degree rotation support.
-- Preserve the legacy sample fixtures for verification while production uses the single fresh v2 example.
-- Use the same renderer for preview, export and print so the displayed label and printed label stay consistent.
+- Introduce the v2 data directory and a clean first-run experience.
+- Add shared content sources for readable text and machine-readable codes.
+- Persist text presentation settings while retaining older-file compatibility.
+- Use one renderer for preview, export and print.
 
 ## 1.0.0 — 2026-08-25
 
-- Introduced the gallery, protected operator mode and dedicated layout editor.
-- Added multiple independent sequential data sources per label.
-- Added shared data sources so QR, text and barcodes can represent one value.
-- Added exact sequence-range preflight before printing.
-- Ensured cancelled print dialogs never consume sequence numbers.
-- Added undo/redo and corrected rotated element bounds, hit-testing and SVG geometry.
-- Added semantic data names and direct QR/content editing.
-- Unified paths, printer metadata, manuals and project information in Settings.
-- Improved Swing spacing, scaling, readability and long-path handling.
-- Added Italian and English in-app manuals.
-- Expanded release verification with behaviour, layout and scaling regressions.
+- Introduce the gallery, protected print flow and layout editor.
+- Support multiple independent sequences and shared data sources.
+- Validate complete sequence ranges before printing.
+- Preserve counters when the system print dialog is cancelled.
+- Add undo/redo, rotated geometry handling, settings and print history.
+- Add Italian and English in-app manuals and release verification.

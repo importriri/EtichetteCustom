@@ -1,20 +1,17 @@
 package app.codice;
 
 /**
- * Aritmetica nel campo di Galois GF(256) e codici Reed-Solomon.
- *
- * E' la parte che permette a un QR sporco di essere letto lo stesso:
- * ai dati si accodano dei codeword calcolati qui, e il lettore li usa
- * per ricostruire quello che non riesce a vedere.
+ * GF(256) arithmetic and Reed-Solomon correction used by QR encoding.
+ * Correction codewords let readers reconstruct data hidden by local damage.
  */
 final class Galois {
 
-    /** Polinomio del campo usato dallo standard QR: x^8 + x^4 + x^3 + x^2 + 1. */
+    /** QR field polynomial: x^8 + x^4 + x^3 + x^2 + 1. */
     private static final int POLINOMIO = 0x11D;
 
     private Galois() { }
 
-    /** Moltiplicazione nel campo, senza tabelle: 8 passi e via. */
+    /** Table-free field multiplication in eight steps. */
     static int per(int x, int y) {
         int z = 0;
         for (int i = 7; i >= 0; i--) {
@@ -24,7 +21,7 @@ final class Galois {
         return z & 0xFF;
     }
 
-    /** Il divisore di grado dato: (x - r^0)(x - r^1)... */
+    /** Divisor of the requested degree: (x - r^0)(x - r^1)... */
     static int[] divisore(int grado) {
         if (grado < 1 || grado > 255) {
             throw new IllegalArgumentException("grado fuori scala: " + grado);
@@ -44,7 +41,7 @@ final class Galois {
         return out;
     }
 
-    /** I codeword di correzione per un blocco di dati. */
+    /** Error-correction codewords for one data block. */
     static int[] resto(int[] dati, int[] divisore) {
         int[] out = new int[divisore.length];
         for (int b : dati) {

@@ -3,23 +3,312 @@ package app.render;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Impaginazione equilibrata dei codici lunghi. */
+/** Balanced layout for long label text while preserving natural code groups. */
 public final class Testo {
-    private Testo(){}
-    private static final String SEPARATORI=" _-./:;,";
-    public static final class Esito{private final String[] righe;private final double corpo;private final boolean rimpicciolito;Esito(String[] r,double c,boolean x){righe=r;corpo=c;rimpicciolito=x;}public String[] righe(){return righe;}public double corpo(){return corpo;}public boolean rimpicciolito(){return rimpicciolito;}public int quanteRighe(){return righe.length;}}
-    public static Esito componi(String t,double w,double c,int max,boolean b,Misuratore m){return componi(t,w,c,max,0,b,m);}
-    public static Esito componi(String t,double w,double c,int max,int preferite,boolean b,Misuratore m){if(t==null)t="";if(w<=0||c<=0)throw new IllegalArgumentException("larghezza e corpo devono essere positivi");max=Math.max(1,Math.min(3,max));preferite=Math.max(0,Math.min(max,preferite));double min=c*.4;for(double corpo=c;corpo+1e-4>=min;corpo-=c*.05){if(preferite>0){String[] r=bilancia(t,preferite,w,corpo,b,m,true);if(r!=null)return new Esito(r,arrotonda(corpo),corpo<c-1e-4);}else{Candidato best=null;for(int n=1;n<=max;n++){String[] r=bilancia(t,n,w,corpo,b,m,true);if(r==null)continue;double s=score(r,corpo,b,m)+n*.08;if(best==null||s<best.score)best=new Candidato(r,s);}if(best!=null)return new Esito(best.righe,arrotonda(corpo),corpo<c-1e-4);}}int n=preferite>0?preferite:max;return new Esito(senzaVincolo(t,n),arrotonda(min),true);}
-    static String[] dividi(String t,int righe,double w,double c,boolean b,Misuratore m){int max=Math.max(1,Math.min(3,righe));for(int n=1;n<=max;n++){String[] r=bilancia(t,n,w,c,b,m,true);if(r!=null)return r;}return null;}
-    private static String[] bilancia(String t,int n,double w,double c,boolean bold,Misuratore m,boolean limita){if(t.isEmpty())return new String[]{""};if(n<=1)return !limita||m.larghezza(t,c,bold)<=w?new String[]{t}:null;if(t.length()<n)return null;Taglio best=null;if(n==2){for(int a=1;a<t.length();a++){String[] r={t.substring(0,a),t.substring(a)};Taglio x=valuta(r,new int[]{a},w,c,bold,m,limita,t);if(x!=null&&(best==null||x.score<best.score))best=x;}}else{for(int a=1;a<t.length()-1;a++)for(int z=a+1;z<t.length();z++){String[] r={t.substring(0,a),t.substring(a,z),t.substring(z)};Taglio x=valuta(r,new int[]{a,z},w,c,bold,m,limita,t);if(x!=null&&(best==null||x.score<best.score))best=x;}}return best==null?null:best.righe;}
-    private static Taglio valuta(String[] g,int[] tagli,double max,double corpo,boolean bold,Misuratore m,boolean limita,String orig){String[] r=new String[g.length];double[] ws=new double[g.length];double sum=0;for(int i=0;i<g.length;i++){r[i]=trim(g[i]);if(r[i].isEmpty())return null;ws[i]=m.larghezza(r[i],corpo,bold);if(limita&&ws[i]>max+1e-4)return null;sum+=ws[i];}double avg=sum/r.length,s=0;for(double x:ws){double d=x-avg;s+=d*d;}for(int cut:tagli)s+=costoTaglio(orig,cut);return new Taglio(r,s);}
-    private static double costoTaglio(String s,int p){if(p>0&&SEPARATORI.indexOf(s.charAt(p-1))>=0)return -250;if(p<s.length()&&SEPARATORI.indexOf(s.charAt(p))>=0)return 80;return 120;}
-    private static boolean naturale(String s,int p){return p>0&&SEPARATORI.indexOf(s.charAt(p-1))>=0||p<s.length()&&SEPARATORI.indexOf(s.charAt(p))>=0;}
-    private static String trim(String s){int a=0,z=s.length();while(a<z&&s.charAt(a)==' ')a++;while(z>a&&s.charAt(z-1)==' ')z--;return s.substring(a,z);}
-    private static String[] senzaVincolo(String t,int n){if(t==null||t.isEmpty())return new String[]{""};n=Math.max(1,Math.min(3,Math.min(n,t.length())));if(n==1)return new String[]{t};List<String> out=new ArrayList<String>();int da=0;for(int r=n;r>1;r--){int rest=t.length()-da,ideale=da+(int)Math.round(rest/(double)r),cut=vicino(t,da+1,t.length()-(r-1),ideale);out.add(trim(t.substring(da,cut)));da=cut;}out.add(trim(t.substring(da)));return out.toArray(new String[out.size()]);}
-    private static int vicino(String s,int min,int max,int ideale){int best=Math.max(min,Math.min(max,ideale)),dist=Integer.MAX_VALUE;for(int i=min;i<=max;i++)if(i>0&&SEPARATORI.indexOf(s.charAt(i-1))>=0&&Math.abs(i-ideale)<dist){best=i;dist=Math.abs(i-ideale);}return best;}
-    private static double score(String[] r,double c,boolean b,Misuratore m){double sum=0;double[] ws=new double[r.length];for(int i=0;i<r.length;i++){ws[i]=m.larghezza(r[i],c,b);sum+=ws[i];}double avg=sum/r.length,s=0;for(double x:ws){double d=x-avg;s+=d*d;}return s;}
-    private static double arrotonda(double v){return Math.round(v*100.0)/100.0;}
-    private static final class Candidato{final String[] righe;final double score;Candidato(String[] r,double s){righe=r;score=s;}}
-    private static final class Taglio{final String[] righe;final double score;Taglio(String[] r,double s){righe=r;score=s;}}
+    private static final String SEPARATORS = " _-./:;,";
+
+    private Testo() { }
+
+    public static final class Esito {
+        private final String[] righe;
+        private final double corpo;
+        private final boolean rimpicciolito;
+
+        Esito(String[] righe, double corpo, boolean rimpicciolito) {
+            this.righe = righe;
+            this.corpo = corpo;
+            this.rimpicciolito = rimpicciolito;
+        }
+
+        public String[] righe() { return righe; }
+        public double corpo() { return corpo; }
+        public boolean rimpicciolito() { return rimpicciolito; }
+        public int quanteRighe() { return righe.length; }
+    }
+
+    /** Returns logical alphanumeric groups without changing the underlying source value. */
+    public static String[] parti(String testo) {
+        if (testo == null || testo.isEmpty()) return new String[] {""};
+        List<String> parti = new ArrayList<String>();
+        StringBuilder corrente = new StringBuilder();
+        for (int i = 0; i < testo.length(); i++) {
+            char carattere = testo.charAt(i);
+            if (SEPARATORS.indexOf(carattere) >= 0) {
+                if (corrente.length() > 0) {
+                    parti.add(corrente.toString());
+                    corrente.setLength(0);
+                }
+            } else {
+                corrente.append(carattere);
+            }
+        }
+        if (corrente.length() > 0) parti.add(corrente.toString());
+        if (parti.isEmpty()) return new String[] {""};
+        return parti.toArray(new String[parti.size()]);
+    }
+
+    /** 0 returns the full source; 1..n return one logical group. */
+    public static String parte(String testo, int indice) {
+        String completo = testo == null ? "" : testo;
+        if (indice <= 0) return completo;
+        String[] gruppi = parti(completo);
+        return indice <= gruppi.length ? gruppi[indice - 1] : "";
+    }
+
+    public static Esito componi(String testo, double larghezza, double corpo,
+                                int massimoRighe, boolean grassetto, Misuratore misuratore) {
+        return componi(testo, larghezza, corpo, massimoRighe, 0, grassetto, misuratore);
+    }
+
+    public static Esito componi(String testo, double larghezza, double corpo,
+                                int massimoRighe, int righePreferite,
+                                boolean grassetto, Misuratore misuratore) {
+        if (testo == null) testo = "";
+        if (larghezza <= 0 || corpo <= 0) {
+            throw new IllegalArgumentException("width and text size must be positive");
+        }
+
+        massimoRighe = Math.max(1, Math.min(3, massimoRighe));
+        righePreferite = Math.max(0, Math.min(massimoRighe, righePreferite));
+        double minimo = corpo * .4;
+
+        /*
+         * Structured codes are allowed to shrink before a numeric/alphanumeric
+         * group is broken. Unstructured text has no natural boundary to protect,
+         * so it can wrap at full size before shrinking.
+         */
+        if (haSeparatore(testo)) {
+            Esito naturale = prova(testo, larghezza, corpo, minimo, massimoRighe,
+                    righePreferite, grassetto, misuratore, true);
+            if (naturale != null) return naturale;
+        }
+
+        Esito ripiego = prova(testo, larghezza, corpo, minimo, massimoRighe,
+                righePreferite, grassetto, misuratore, false);
+        if (ripiego != null) return ripiego;
+
+        int righe = righePreferite > 0 ? righePreferite : massimoRighe;
+        return new Esito(senzaVincolo(testo, righe), arrotonda(minimo), true);
+    }
+
+    static String[] dividi(String testo, int righe, double larghezza, double corpo,
+                           boolean grassetto, Misuratore misuratore) {
+        int massimo = Math.max(1, Math.min(3, righe));
+        if (haSeparatore(testo)) {
+            for (int n = 1; n <= massimo; n++) {
+                String[] risultato = bilancia(testo, n, larghezza, corpo,
+                        grassetto, misuratore, true, true);
+                if (risultato != null) return risultato;
+            }
+        }
+        for (int n = 1; n <= massimo; n++) {
+            String[] risultato = bilancia(testo, n, larghezza, corpo,
+                    grassetto, misuratore, true, false);
+            if (risultato != null) return risultato;
+        }
+        return null;
+    }
+
+    private static boolean haSeparatore(String testo) {
+        if (testo == null) return false;
+        for (int i = 0; i < testo.length(); i++) {
+            if (SEPARATORS.indexOf(testo.charAt(i)) >= 0) return true;
+        }
+        return false;
+    }
+
+    private static Esito prova(String testo, double larghezza, double corpo,
+                               double minimo, int massimoRighe, int righePreferite,
+                               boolean grassetto, Misuratore misuratore,
+                               boolean soloTagliNaturali) {
+        for (double corrente = corpo; corrente + 1e-4 >= minimo; corrente -= corpo * .05) {
+            if (righePreferite > 0) {
+                String[] righe = bilancia(testo, righePreferite, larghezza, corrente,
+                        grassetto, misuratore, true, soloTagliNaturali);
+                if (righe != null) {
+                    return new Esito(righe, arrotonda(corrente), corrente < corpo - 1e-4);
+                }
+            } else {
+                Candidato migliore = null;
+                for (int n = 1; n <= massimoRighe; n++) {
+                    String[] righe = bilancia(testo, n, larghezza, corrente,
+                            grassetto, misuratore, true, soloTagliNaturali);
+                    if (righe == null) continue;
+                    double punteggio = score(righe, corrente, grassetto, misuratore) + n * .08;
+                    if (migliore == null || punteggio < migliore.score) {
+                        migliore = new Candidato(righe, punteggio);
+                    }
+                }
+                if (migliore != null) {
+                    return new Esito(migliore.righe, arrotonda(corrente), corrente < corpo - 1e-4);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String[] bilancia(String testo, int numeroRighe, double larghezza,
+                                     double corpo, boolean grassetto, Misuratore misuratore,
+                                     boolean limita, boolean soloTagliNaturali) {
+        if (testo == null || testo.isEmpty()) return new String[] {""};
+        if (numeroRighe <= 1) {
+            return !limita || misuratore.larghezza(testo, corpo, grassetto) <= larghezza
+                    ? new String[] {testo} : null;
+        }
+        if (testo.length() < numeroRighe) return null;
+
+        Taglio migliore = null;
+        if (numeroRighe == 2) {
+            for (int a = 1; a < testo.length(); a++) {
+                String[] righe = {testo.substring(0, a), testo.substring(a)};
+                Taglio candidato = valuta(righe, new int[] {a}, larghezza, corpo,
+                        grassetto, misuratore, limita, testo, soloTagliNaturali);
+                if (candidato != null && (migliore == null || candidato.score < migliore.score)) {
+                    migliore = candidato;
+                }
+            }
+        } else {
+            for (int a = 1; a < testo.length() - 1; a++) {
+                for (int b = a + 1; b < testo.length(); b++) {
+                    String[] righe = {
+                        testo.substring(0, a),
+                        testo.substring(a, b),
+                        testo.substring(b)
+                    };
+                    Taglio candidato = valuta(righe, new int[] {a, b}, larghezza, corpo,
+                            grassetto, misuratore, limita, testo, soloTagliNaturali);
+                    if (candidato != null
+                            && (migliore == null || candidato.score < migliore.score)) {
+                        migliore = candidato;
+                    }
+                }
+            }
+        }
+        return migliore == null ? null : migliore.righe;
+    }
+
+    private static Taglio valuta(String[] gruppi, int[] tagli, double larghezzaMassima,
+                                 double corpo, boolean grassetto, Misuratore misuratore,
+                                 boolean limita, String originale, boolean soloTagliNaturali) {
+        if (soloTagliNaturali) {
+            for (int taglio : tagli) {
+                if (!taglioNaturale(originale, taglio)) return null;
+            }
+        }
+
+        String[] righe = new String[gruppi.length];
+        double[] larghezze = new double[gruppi.length];
+        double somma = 0;
+        for (int i = 0; i < gruppi.length; i++) {
+            righe[i] = trimSpazi(gruppi[i]);
+            if (righe[i].isEmpty()) return null;
+            larghezze[i] = misuratore.larghezza(righe[i], corpo, grassetto);
+            if (limita && larghezze[i] > larghezzaMassima + 1e-4) return null;
+            somma += larghezze[i];
+        }
+
+        double media = somma / righe.length;
+        double punteggio = 0;
+        for (double larghezza : larghezze) {
+            double differenza = larghezza - media;
+            punteggio += differenza * differenza;
+        }
+        if (!soloTagliNaturali) {
+            for (int taglio : tagli) punteggio += costoTaglio(originale, taglio);
+        }
+        return new Taglio(righe, punteggio);
+    }
+
+    private static boolean taglioNaturale(String testo, int posizione) {
+        return posizione > 0
+                && posizione <= testo.length()
+                && SEPARATORS.indexOf(testo.charAt(posizione - 1)) >= 0;
+    }
+
+    private static double costoTaglio(String testo, int posizione) {
+        if (taglioNaturale(testo, posizione)) return -1000;
+        if (posizione < testo.length() && SEPARATORS.indexOf(testo.charAt(posizione)) >= 0) {
+            return -700;
+        }
+        return 100;
+    }
+
+    private static String trimSpazi(String testo) {
+        int inizio = 0;
+        int fine = testo.length();
+        while (inizio < fine && testo.charAt(inizio) == ' ') inizio++;
+        while (fine > inizio && testo.charAt(fine - 1) == ' ') fine--;
+        return testo.substring(inizio, fine);
+    }
+
+    private static String[] senzaVincolo(String testo, int numeroRighe) {
+        if (testo == null || testo.isEmpty()) return new String[] {""};
+        numeroRighe = Math.max(1, Math.min(3, Math.min(numeroRighe, testo.length())));
+        if (numeroRighe == 1) return new String[] {testo};
+
+        List<String> risultato = new ArrayList<String>();
+        int da = 0;
+        for (int restanti = numeroRighe; restanti > 1; restanti--) {
+            int caratteri = testo.length() - da;
+            int ideale = da + (int) Math.round(caratteri / (double) restanti);
+            int taglio = vicino(testo, da + 1, testo.length() - (restanti - 1), ideale);
+            risultato.add(trimSpazi(testo.substring(da, taglio)));
+            da = taglio;
+        }
+        risultato.add(trimSpazi(testo.substring(da)));
+        return risultato.toArray(new String[risultato.size()]);
+    }
+
+    private static int vicino(String testo, int minimo, int massimo, int ideale) {
+        int migliore = Math.max(minimo, Math.min(massimo, ideale));
+        int distanza = Integer.MAX_VALUE;
+        for (int i = minimo; i <= massimo; i++) {
+            if (taglioNaturale(testo, i) && Math.abs(i - ideale) < distanza) {
+                migliore = i;
+                distanza = Math.abs(i - ideale);
+            }
+        }
+        return migliore;
+    }
+
+    private static double score(String[] righe, double corpo, boolean grassetto,
+                                Misuratore misuratore) {
+        double somma = 0;
+        double[] larghezze = new double[righe.length];
+        for (int i = 0; i < righe.length; i++) {
+            larghezze[i] = misuratore.larghezza(righe[i], corpo, grassetto);
+            somma += larghezze[i];
+        }
+        double media = somma / righe.length;
+        double punteggio = 0;
+        for (double larghezza : larghezze) {
+            double differenza = larghezza - media;
+            punteggio += differenza * differenza;
+        }
+        return punteggio;
+    }
+
+    private static double arrotonda(double valore) {
+        return Math.round(valore * 100.0) / 100.0;
+    }
+
+    private static final class Candidato {
+        final String[] righe;
+        final double score;
+
+        Candidato(String[] righe, double score) {
+            this.righe = righe;
+            this.score = score;
+        }
+    }
+
+    private static final class Taglio {
+        final String[] righe;
+        final double score;
+
+        Taglio(String[] righe, double score) {
+            this.righe = righe;
+            this.score = score;
+        }
+    }
 }

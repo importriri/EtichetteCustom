@@ -1,13 +1,13 @@
 package app.modello;
 
-/** Come si comporta un campo quando parte un giro di stampa. */
+/** Defines how a content source behaves during a print run. */
 public enum Comportamento {
 
-    /** Vale sempre lo stesso: una sigla, un reparto, una revisione. */
+    /** Keeps the same stored value. */
     FISSO("Fisso"),
-    /** Fa +1 a ogni etichetta dentro la finestra di cifre decisa dall'operatore. */
+    /** Advances the configured numeric window once per printed label. */
     PROGRESSIVO("Progressivo"),
-    /** L'app lo chiede all'inizio di ogni giro: un lotto, una destinazione. */
+    /** Requests a value at the beginning of each print run. */
     CHIESTO("Chiesto a ogni stampa");
 
     private final String etichetta;

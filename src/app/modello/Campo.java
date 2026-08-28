@@ -1,6 +1,6 @@
 package app.modello;
 
-/** Un dato dell'etichetta, indipendente dagli elementi che lo mostrano. */
+/** One label content source, independent from the visual elements that use it. */
 public class Campo {
 
     private final String nome;
@@ -43,7 +43,7 @@ public class Campo {
         }
     }
 
-    /** Il valore che verrebbe usato adesso, senza consumare il progressivo. */
+    /** Returns the value that would be used now without consuming the sequence. */
     public String corrente() {
         if (comportamento == Comportamento.PROGRESSIVO && serie != null) {
             return serie.codice(serie.prossimo());

@@ -8,18 +8,9 @@ import java.security.MessageDigest;
 import java.util.List;
 
 /**
- * QR e Code 128.
- *
- * Queste due classi sono le uniche in cui un errore non si vede a occhio:
- * un QR sbagliato e' bello uguale a uno giusto, e te ne accorgi quando
- * mille etichette sono gia' sul bancale.
- *
- * Le impronte qui sotto sono state prese da matrici lette davvero da un
- * decodificatore indipendente (zbar): 56 campioni su 56, versioni 1-15,
- * tutti e quattro i livelli di correzione. Se qualcuno tocca l'encoder e
- * l'impronta cambia, questa prova diventa rossa prima della stampante.
- * Per rifare la verifica fisica: prove.Campioni scrive i PNG, si scansionano
- * col lettore di reparto.
+ * QR and Code 128 encoder regressions. Machine-readable symbols can look valid
+ * even when their payload is wrong, so reference fingerprints are backed by
+ * independent decoding and physical scanner checks.
  */
 public final class ProvaCodici {
 
@@ -33,30 +24,30 @@ public final class ProvaCodici {
         code128();
     }
 
-    /* ---- QR: quello che si puo' controllare guardando la matrice ------ */
+    /* ---- QR structural checks ----------------------------------------- */
 
     private static void qrStruttura() {
-        Prove.suite("QR - struttura della matrice");
+        Prove.suite("QR matrix structure");
 
         boolean[][] m = Qr.codifica(CODICE, Correzione.M);
         int lato = m.length;
-        Prove.uguale("il codice di reparto sta in versione 2", 2,
+        Prove.uguale("the production sample fits QR version 2", 2,
                 Qr.versionePer(CODICE, Correzione.M));
-        Prove.uguale("una versione 2 e' larga 25 moduli", 25, lato);
-        Prove.vero("la matrice e' quadrata", m[0].length == lato);
+        Prove.uguale("QR version 2 is 25 modules wide", 25, lato);
+        Prove.vero("the QR matrix is square", m[0].length == lato);
 
-        Prove.vero("mirino in alto a sinistra", mirino(m, 0, 0));
-        Prove.vero("mirino in alto a destra", mirino(m, lato - 7, 0));
-        Prove.vero("mirino in basso a sinistra", mirino(m, 0, lato - 7));
+        Prove.vero("top-left finder pattern is valid", mirino(m, 0, 0));
+        Prove.vero("top-right finder pattern is valid", mirino(m, lato - 7, 0));
+        Prove.vero("bottom-left finder pattern is valid", mirino(m, 0, lato - 7));
 
         boolean timing = true;
         for (int i = 8; i < lato - 8; i++) {
             timing &= m[6][i] == (i % 2 == 0);
             timing &= m[i][6] == (i % 2 == 0);
         }
-        Prove.vero("le righe di sincronismo si alternano", timing);
-        Prove.vero("il modulo scuro fisso c'e'", m[lato - 8][8]);
-        Prove.vero("i bit di formato sono un BCH valido", formatoValido(m));
+        Prove.vero("timing patterns alternate correctly", timing);
+        Prove.vero("fixed dark module is present", m[lato - 8][8]);
+        Prove.vero("format bits contain a valid BCH code", formatoValido(m));
 
         int scuri = 0;
         for (boolean[] riga : m) {
@@ -67,14 +58,14 @@ public final class ProvaCodici {
             }
         }
         double quota = scuri / (double) (lato * lato);
-        Prove.vero("scuro e chiaro sono in equilibrio (" + Math.round(quota * 100) + "%)",
+        Prove.vero("dark and light modules are balanced (" + Math.round(quota * 100) + "%)",
                 quota > 0.35 && quota < 0.65);
 
-        Prove.uguale("piu' correzione, piu' moduli", true,
+        Prove.uguale("higher correction requires more modules", true,
                 Qr.versionePer(CODICE, Correzione.H) > Qr.versionePer(CODICE, Correzione.L));
-        Prove.uguale("una versione 1 a livello M tiene 16 byte", 16,
+        Prove.uguale("version 1 at level M holds 16 payload bytes", 16,
                 Qr.codewordDati(1, Correzione.M));
-        Prove.vero("il testo vuoto non fa esplodere niente",
+        Prove.vero("empty payload is handled safely",
                 Qr.codifica("", Correzione.M).length == 21);
 
         StringBuilder enorme = new StringBuilder();
@@ -82,7 +73,7 @@ public final class ProvaCodici {
             enorme.append('X');
         }
         final String troppo = enorme.toString();
-        Prove.esplode("un testo che non entra in nessuna versione viene rifiutato",
+        Prove.esplode("payloads too large for every QR version are rejected",
                 IllegalArgumentException.class, new Runnable() {
                     @Override
                     public void run() {
@@ -103,10 +94,10 @@ public final class ProvaCodici {
     };
 
     private static void qrImpronte() {
-        Prove.suite("QR - impronte di riferimento");
+        Prove.suite("QR reference fingerprints");
         for (String[] caso : IMPRONTE) {
             boolean[][] m = Qr.codifica(caso[0], Correzione.valueOf(caso[1]));
-            Prove.uguale("impronta di \"" + taglia(caso[0]) + "\" a livello " + caso[1],
+            Prove.uguale("fingerprint of \"" + taglia(caso[0]) + "\" at level " + caso[1],
                     caso[2], impronta(m));
         }
     }
@@ -148,7 +139,7 @@ public final class ProvaCodici {
         return true;
     }
 
-    /** Rilegge i 15 bit di formato e ricontrolla il codice correttore. */
+    /** Reads the 15 format bits back and validates their correction code. */
     private static boolean formatoValido(boolean[][] m) {
         int bit = 0;
         for (int i = 0; i <= 5; i++) {
@@ -185,17 +176,17 @@ public final class ProvaCodici {
         controlla(" ");
 
         List<Integer> soloCifre = Code128.valori("1234567890123456");
-        Prove.uguale("sedici cifre partono direttamente in set C", 105, soloCifre.get(0).intValue());
-        Prove.uguale("e stanno in undici simboli piu' checksum e stop",
+        Prove.uguale("sixteen digits start directly in set C", 105, soloCifre.get(0).intValue());
+        Prove.uguale("they fit in eleven symbols including checksum and stop",
                 11, soloCifre.size());
 
         List<Integer> misto = Code128.valori("R-07-13");
-        Prove.uguale("un codice con lettere parte in set B", 104, misto.get(0).intValue());
+        Prove.uguale("a code containing letters starts in set B", 104, misto.get(0).intValue());
 
-        Prove.vero("il set C dimezza la larghezza sui numerici lunghi",
+        Prove.vero("set C reduces width for long numeric runs",
                 Code128.moduli("1234567890123456") < Code128.moduli("ABCDEFGHIJKLMNOP"));
 
-        Prove.esplode("un carattere fuori ASCII stampabile viene rifiutato",
+        Prove.esplode("characters outside printable ASCII are rejected",
                 IllegalArgumentException.class, new Runnable() {
                     @Override
                     public void run() {
@@ -204,23 +195,20 @@ public final class ProvaCodici {
                 });
     }
 
-    /**
-     * Rifa' il percorso al contrario: dai valori simbolo torna al testo,
-     * ricontrolla il checksum e verifica che le larghezze tornino.
-     */
+    /** Reconstructs text from symbol values and revalidates checksum and widths. */
     private static void controlla(String testo) {
         List<Integer> v = Code128.valori(testo);
         int avvio = v.get(0);
-        Prove.vero("\"" + testo + "\": parte con un codice di avvio",
+        Prove.vero("\"" + testo + "\": starts with a valid start symbol",
                 avvio == 103 || avvio == 104 || avvio == 105);
-        Prove.uguale("\"" + testo + "\": chiude con lo stop", 106,
+        Prove.uguale("\"" + testo + "\": ends with the stop symbol", 106,
                 v.get(v.size() - 1).intValue());
 
         int somma = avvio;
         for (int i = 1; i < v.size() - 2; i++) {
             somma += v.get(i) * i;
         }
-        Prove.uguale("\"" + testo + "\": il checksum torna", somma % 103,
+        Prove.uguale("\"" + testo + "\": checksum matches", somma % 103,
                 v.get(v.size() - 2).intValue());
 
         StringBuilder rifatto = new StringBuilder();
@@ -237,15 +225,15 @@ public final class ProvaCodici {
                 rifatto.append((char) (valore + 32));
             }
         }
-        Prove.uguale("\"" + testo + "\": rimesso insieme torna uguale", testo, rifatto.toString());
+        Prove.uguale("\"" + testo + "\": decoded text matches the source", testo, rifatto.toString());
 
         int somma2 = 0;
         for (int t : Code128.tratti(testo)) {
             somma2 += t;
         }
-        Prove.uguale("\"" + testo + "\": le larghezze tornano ai moduli dichiarati",
+        Prove.uguale("\"" + testo + "\": run widths match declared modules",
                 Code128.moduli(testo), somma2);
-        Prove.uguale("\"" + testo + "\": undici moduli per simbolo, piu' due dello stop",
+        Prove.uguale("\"" + testo + "\": module count matches Code 128 structure",
                 (v.size() - 1) * 11 + 13, somma2);
     }
 }

@@ -41,7 +41,7 @@ public final class ProvaDialoghi {
                 owner.dispose();
             }
         });
-        if (failures != 0) System.exit(1);
+        System.exit(failures == 0 ? 0 : 1);
     }
 
     private static void inspectAndClose() {

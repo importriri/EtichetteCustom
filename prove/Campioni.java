@@ -12,13 +12,10 @@ import java.io.PrintWriter;
 import javax.imageio.ImageIO;
 
 /**
- * Scrive QR e barcode come PNG, con l'elenco di quello che dovrebbero dire.
+ * Writes QR and barcode PNG samples together with their expected payloads for
+ * independent physical scanner verification.
  *
- * Serve per la verifica che conta davvero: si aprono i file, si scansionano
- * col lettore di reparto (il NETUM), e si confronta con l'elenco. Nessuna
- * libreria di mezzo, nessuna fiducia da concedere a me.
- *
- *   java -cp build:prove-build prove.Campioni campioni/
+ *   java -cp build:prove-build prove.Campioni samples/
  */
 public final class Campioni {
 
@@ -27,7 +24,7 @@ public final class Campioni {
     public static void main(String[] args) throws Exception {
         File dove = new File(args.length > 0 ? args[0] : "campioni");
         if (!dove.isDirectory() && !dove.mkdirs()) {
-            throw new IllegalStateException("non riesco a creare " + dove);
+            throw new IllegalStateException("cannot create " + dove);
         }
 
         String[] testi = {

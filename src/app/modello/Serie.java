@@ -1,12 +1,10 @@
 package app.modello;
 
 /**
- * La finestra dell'incremento.
+ * Numeric sequence window embedded in a larger code.
  *
- * Un codice come <code>740125.003_01-02_584700001</code> non e' un numero:
- * e' un prefisso immutabile piu' le ultime N cifre, che sono le uniche a
- * muoversi. N lo decide l'operatore. Tutto quello che sta a sinistra della
- * finestra non viene toccato mai.
+ * A code such as <code>740125.003_01-02_584700001</code> is not treated as one
+ * number. Its prefix stays immutable and only the final N digits advance.
  */
 public class Serie {
 
@@ -19,8 +17,7 @@ public class Serie {
             throw new IllegalArgumentException("la finestra deve avere almeno una cifra");
         }
         if (cifre > 9) {
-            /* dieci cifre non entrano in un int: meglio dirlo che contare
-               a rovescio da un numero negativo in mezzo a un giro */
+            /* Ten digits do not fit safely in the int-backed sequence counter. */
             throw new IllegalArgumentException(
                     "la finestra non puo' superare le 9 cifre: " + cifre);
         }
@@ -60,7 +57,7 @@ public class Serie {
         prossimo = valore;
     }
 
-    /** Il piu' grande numero che la finestra riesce a contenere. */
+    /** Largest value that fits in the configured numeric window. */
     public int massimo() {
         int m = 1;
         for (int i = 0; i < cifre; i++) {
@@ -69,7 +66,7 @@ public class Serie {
         return m - 1;
     }
 
-    /** Solo la parte che si muove, con gli zeri davanti. */
+    /** Formats only the advancing part, including leading zeroes. */
     public String finestra(int numero) {
         StringBuilder b = new StringBuilder(Integer.toString(numero));
         while (b.length() < cifre) {
@@ -83,9 +80,8 @@ public class Serie {
     }
 
     /**
-     * I codici di un giro, a partire da {@link #prossimo()}.
-     * Non avanza il contatore: quello lo fa {@link #consuma(int)} a stampa
-     * riuscita, cosi' un giro annullato non brucia numeri.
+     * Returns one run starting at {@link #prossimo()} without advancing state.
+     * State moves only through {@link #consuma(int)} after a successful print.
      */
     public String[] giro(int copie) {
         if (copie < 1) {
@@ -104,7 +100,7 @@ public class Serie {
         return out;
     }
 
-    /** Da chiamare solo quando la stampa e' andata a buon fine. */
+    /** Advances state after a successful print run. */
     public void consuma(int copie) {
         giro(copie);
         prossimo += copie;

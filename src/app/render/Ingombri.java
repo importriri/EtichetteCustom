@@ -9,10 +9,53 @@ import java.awt.geom.Rectangle2D;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Ingombro visibile degli elementi, usato da disegno, hit-test e selezione. */
+/** Visible element bounds used by rendering, hit testing and selection. */
 public final class Ingombri {
-    private Ingombri(){}
-    public static Map<Elemento,Rectangle2D.Double> calcola(Graphics2D g,Etichetta eti,double mmPx,int copia){Map<Elemento,Rectangle2D.Double> out=new LinkedHashMap<Elemento,Rectangle2D.Double>();for(Elemento e:eti.elementi())out.put(e,di(g,eti,e,mmPx,copia));return out;}
-    public static Rectangle2D.Double base(Graphics2D g,Etichetta eti,Elemento e,double mmPx,int copia){double w=e.larghezza(),h;switch(e.tipo()){case QR:h=e.larghezza();break;case BARCODE:case LINEA:h=e.altezza();break;default:String mostrato=Disegno.testoVisuale(eti.contenuto(e,copia),e.mostraSeparatori());Testo.Esito esito=Testo.componi(mostrato,e.larghezza(),e.corpo(),e.massimoRighe(),e.righePreferite(),e.grassetto(),Disegno.misuratore(g,mmPx));Font f=Disegno.font(esito.corpo()*mmPx,e.grassetto());FontMetrics fm=g.getFontMetrics(f);h=esito.quanteRighe()*(fm.getAscent()+fm.getDescent())/mmPx;w=e.larghezza();break;}return new Rectangle2D.Double(0,0,w,h);}
-    public static Rectangle2D.Double di(Graphics2D g,Etichetta eti,Elemento e,double mmPx,int copia){Rectangle2D.Double r=base(g,eti,e,mmPx,copia);boolean scambia=e.rotazione()==90||e.rotazione()==270;return new Rectangle2D.Double(e.x(),e.y(),scambia?r.height:r.width,scambia?r.width:r.height);}
+    private Ingombri() { }
+
+    public static Map<Elemento, Rectangle2D.Double> calcola(
+            Graphics2D g, Etichetta etichetta, double mmPx, int copia) {
+        Map<Elemento, Rectangle2D.Double> risultato =
+                new LinkedHashMap<Elemento, Rectangle2D.Double>();
+        for (Elemento elemento : etichetta.elementi()) {
+            risultato.put(elemento, di(g, etichetta, elemento, mmPx, copia));
+        }
+        return risultato;
+    }
+
+    public static Rectangle2D.Double base(Graphics2D g, Etichetta etichetta,
+                                          Elemento elemento, double mmPx, int copia) {
+        double larghezza = elemento.larghezza();
+        double altezza;
+        switch (elemento.tipo()) {
+            case QR:
+                altezza = elemento.larghezza();
+                break;
+            case BARCODE:
+            case LINEA:
+                altezza = elemento.altezza();
+                break;
+            default:
+                String mostrato = Disegno.testoElemento(etichetta, elemento, copia);
+                Testo.Esito esito = Testo.componi(mostrato, elemento.larghezza(),
+                        elemento.corpo(), elemento.massimoRighe(), elemento.righePreferite(),
+                        elemento.grassetto(), Disegno.misuratore(g, mmPx));
+                Font font = Disegno.font(esito.corpo() * mmPx, elemento.grassetto());
+                FontMetrics metriche = g.getFontMetrics(font);
+                altezza = esito.quanteRighe()
+                        * (metriche.getAscent() + metriche.getDescent()) / mmPx;
+                larghezza = elemento.larghezza();
+                break;
+        }
+        return new Rectangle2D.Double(0, 0, larghezza, altezza);
+    }
+
+    public static Rectangle2D.Double di(Graphics2D g, Etichetta etichetta,
+                                        Elemento elemento, double mmPx, int copia) {
+        Rectangle2D.Double base = base(g, etichetta, elemento, mmPx, copia);
+        boolean scambia = elemento.rotazione() == 90 || elemento.rotazione() == 270;
+        return new Rectangle2D.Double(elemento.x(), elemento.y(),
+                scambia ? base.height : base.width,
+                scambia ? base.width : base.height);
+    }
 }

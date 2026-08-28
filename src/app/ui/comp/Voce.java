@@ -10,8 +10,8 @@ import java.awt.event.MouseEvent;
 import javax.swing.JComponent;
 
 /**
- * Una riga della colonna comandi. Niente riquadro intorno: la colonna e'
- * fatta di aria e di parole, i bordi li mette solo chi ne ha bisogno.
+ * One command-row entry. The tool rail stays visually light and reserves borders
+ * for controls that need an explicit boundary.
  */
 public class Voce extends JComponent {
 

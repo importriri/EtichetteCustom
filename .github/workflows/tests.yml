@@ -21,17 +21,39 @@ jobs:
       - name: Verify source and standalone JAR
         run: ./verify.sh
       - uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: EtichetteCustom-jar
           path: dist/EtichetteCustom.jar
           if-no-files-found: error
           retention-days: 14
       - uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: EtichetteCustom-linux-ui-audit
           path: build/ui-audit/*.png
           if-no-files-found: error
           retention-days: 14
+      - name: Upload temporary source snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EtichetteCustom-source-snapshot
+          path: |
+            .github
+            src
+            prove
+            docs
+            tools
+            README.md
+            CHANGELOG.md
+            LICENSE
+            .gitignore
+            build.xml
+            verify.sh
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
 
   windows-ui:
     runs-on: windows-latest

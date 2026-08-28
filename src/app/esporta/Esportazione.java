@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Le tre uscite in un posto solo, cosi' l'interfaccia ne conosce una sola. */
+/** Export facade that keeps the UI independent from individual output formats. */
 public final class Esportazione {
 
     public enum Come {
@@ -38,9 +38,8 @@ public final class Esportazione {
     private Esportazione() { }
 
     /**
-     * @param quante quante etichette del giro esportare: 1 per la sola
-     *               etichetta corrente, di piu' per tutta la serie.
-     * @return i file scritti davvero.
+     * @param quante number of labels to export; one for the current label or more for a run
+     * @return files actually written
      */
     public static List<File> esporta(File dove, Etichetta eti, SorgenteQr qr,
                                      Come come, int quante, int dpi) throws IOException {
@@ -52,7 +51,7 @@ public final class Esportazione {
         File cartella = dove.getParentFile() == null ? new File(".") : dove.getParentFile();
 
         if (come == Come.PDF) {
-            /* un PDF solo, con dentro tutte le pagine del giro */
+            /* one PDF containing every page in the run */
             List<BufferedImage> pagine = new ArrayList<BufferedImage>();
             for (int i = 0; i < quante; i++) {
                 pagine.add(Png.immagine(eti, qr, dpi, i));

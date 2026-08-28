@@ -1,117 +1,78 @@
 <div align="center">
 
-# Etichette Custom
+# EtichetteCustom
 
-A standalone Java/Swing desktop tool for designing and printing serialized
-labels with readable text, QR codes and Code 128 barcodes.
+A standalone Java/Swing tool for designing and printing serialized labels with
+readable text, QR codes and Code 128 barcodes.
 
-[![tests](https://github.com/importriri/etichette-custom/actions/workflows/tests.yml/badge.svg)](https://github.com/importriri/etichette-custom/actions/workflows/tests.yml)
-[![lint](https://github.com/importriri/etichette-custom/actions/workflows/lint.yml/badge.svg)](https://github.com/importriri/etichette-custom/actions/workflows/lint.yml)
+[![tests](https://github.com/importriri/EtichetteCustom/actions/workflows/tests.yml/badge.svg)](https://github.com/importriri/EtichetteCustom/actions/workflows/tests.yml)
+[![lint](https://github.com/importriri/EtichetteCustom/actions/workflows/lint.yml/badge.svg)](https://github.com/importriri/EtichetteCustom/actions/workflows/lint.yml)
 
-![Etichette Custom demo](docs/demo.gif)
+![EtichetteCustom demo](docs/demo.gif)
 
 </div>
 
-## Why it exists
+## Why
 
-Small production labels are easy to print badly: a sequence can be consumed too
-early, a readable code can drift away from its QR payload, or a layout can look
-different between preview and print.
+Production labels need more than a drawing surface. A sequence must not advance
+before a successful print, readable text must stay consistent with encoded data,
+and preview and print must share the same geometry.
 
-Etichette Custom keeps those concerns in one small application. The same label
-model drives the editor, preview, export and Java printing path, while sequence
-numbers advance only after a successful print.
-
-The application is used as a standalone Java 8-compatible JAR with no runtime
-dependencies.
+EtichetteCustom keeps those rules in one small application. It runs as a
+Java 8-compatible standalone JAR with no runtime dependencies.
 
 ## Workflow
 
-### Gallery
+**Gallery** — open a saved label or create one. A fresh data directory starts
+with one editable example.
 
-Open an existing label or create a new one. A fresh installation starts with one
-small editable example instead of a catalogue of templates. Search appears only
-when the gallery is large enough to need it, and recent print history appears
-only after a run has been recorded.
+**Editor** — select, drag and resize elements directly on the label. The
+inspector shows only controls relevant to the current selection; precise
+measurements and technical QR options stay available when needed.
 
-### Layout editor
+**Print** — enter only values needed for the current run, check the outgoing
+range and open the operating-system print dialog. Cancelling does not consume
+sequence numbers.
 
-Select an element on the label, drag it to move it and drag a blue corner handle
-to resize it. The inspector is contextual: text controls appear for text, QR
-health appears for QR elements, and exact millimetre fields stay hidden until
-**Precise measurements** is opened.
+A source value can feed QR, Code 128 and readable text at the same time. Readable
+text can hide separators, wrap at logical boundaries, or expose selected logical
+parts without changing the exact encoded source.
 
-Routine actions stay compact:
+## Reliability
 
-- one alignment chooser instead of three permanent buttons;
-- one line-count chooser for automatic, 1, 2 or 3 lines;
-- one **Rotate 90°** action instead of four angle buttons;
-- one source value can be shared by QR, barcode and readable text;
-- fixed, sequential and print-time values expose their extra controls only when
-  they are relevant.
-
-QR and Code 128 always receive the exact source string. Hiding punctuation or
-wrapping readable text changes presentation only.
-
-### Print preparation
-
-The print view exposes only run-time choices. Fixed values stay out of the way;
-a sequential field shows its starting value and outgoing range, while a
-print-time field asks for the value needed by that run. Sequence configuration
-remains in the editor instead of being repeated before every print.
-
-The final action opens the operating-system print dialog. Cancelling that dialog
-does not consume sequence numbers.
-
-## Safety and consistency
-
-- Preview, editor canvas, PNG, PDF and Java printing share the same renderer.
-- QR/barcode payloads stay independent from readable-text presentation.
-- Every sequence is validated before a run and refuses numeric-window overflow.
-- Sequence counters advance only after successful printing.
-- Updated state is persisted after the print and the run is appended to the log.
-- Undo and redo cover layout edits.
-- Routine geometry uses direct manipulation instead of spinner-heavy forms.
+- Preview, editor, PNG, PDF and Java printing share one renderer.
+- QR and barcode payloads always use the exact source value.
+- Sequential ranges are validated before printing.
+- Counters advance only after a successful print job.
+- Layout state is persisted after printing and each run is logged.
+- Older v3 and v4 label files remain readable.
+- UI regressions are exercised on Linux and native Windows at several scales.
 
 ## Screenshots
 
-| Gallery | Layout editor | Print preparation |
+| Gallery | Editor | Print |
 |---|---|---|
-| ![Gallery](docs/screenshot-vetrina.png) | ![Layout editor](docs/screenshot-editor.png) | ![Print preparation](docs/screenshot-operatore.png) |
+| ![Gallery](docs/screenshot-vetrina.png) | ![Editor](docs/screenshot-editor.png) | ![Print](docs/screenshot-operatore.png) |
 
 The screenshots, demo and bundled example use synthetic data.
-
-## Windows UI verification
-
-CI compiles the Java 8-compatible sources on Linux and a native Windows runner.
-The graphical audit renders the first-run gallery, editor and print flow at
-several UI scales corresponding to common 100%, 125%, 150% and 200% profiles.
-The PNG evidence is retained for visual review; a green layout test alone is not
-considered sufficient evidence for a UI change.
-
-The audit also checks direct resize behavior, text alignment and wrapping,
-rotation, source-data preservation and the absence of `JSpinner` from the
-primary workflow. Details are in
-[`docs/windows-ui-audit.md`](docs/windows-ui-audit.md).
 
 ## Project layout
 
 ```text
-src/app/modello/      labels, content sources, sequences and settings
-src/app/render/       shared drawing, text layout and hit geometry
-src/app/codice/       built-in QR and Code 128 encoders
-src/app/archivio/     layout persistence and print history
-src/app/stampa/       physical print job
+src/app/modello/      label data, content sources and sequences
+src/app/render/       shared drawing and text layout
+src/app/codice/       QR and Code 128 encoders
+src/app/archivio/     persistence and print history
+src/app/stampa/       physical printing
 src/app/esporta/      PNG, PDF and SVG export
-src/app/ui/           gallery, editor, print preparation and dialogs
+src/app/ui/           gallery, editor, print flow and dialogs
 src/app/stile/        Swing design system
-prove/                plain-JDK regression and graphical audit programs
+prove/                regression and graphical audit programs
 ```
 
-The model and renderer do not depend on the UI layer. More detail is in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the internal boundaries.
 
-## Build and verify
+## Verify
 
 Requirements: JDK 8 or newer. The full Linux display audit also uses Xvfb.
 
@@ -120,20 +81,17 @@ Requirements: JDK 8 or newer. The full Linux display audit also uses Xvfb.
 java -jar dist/EtichetteCustom.jar
 ```
 
-`verify.sh` compiles with warnings as errors, runs the core and behavior suites,
-executes graphical audits when a display is available, builds the standalone
-JAR, checks its manifest and generates controlled QR/barcode samples. GitHub
-Actions adds the native Windows graphical matrix.
-
-When `ETICHETTE_PRIVATE_DENYLIST` is configured in CI, the repository also runs
-a fail-closed scan for private identifiers before verification.
+`verify.sh` compiles with warnings as errors, runs model/rendering regressions,
+executes graphical audits when a display is available, validates repository
+media and builds the standalone JAR. GitHub Actions adds a native Windows UI
+matrix.
 
 ## Manuals
 
 - [Italiano](docs/MANUAL.it.md)
 - [English](docs/MANUAL.en.md)
 
-The manuals are also available inside the JAR from the settings view.
+The same manuals are available from the application settings.
 
 ## License
 

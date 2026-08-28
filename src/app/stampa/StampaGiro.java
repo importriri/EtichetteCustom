@@ -14,20 +14,13 @@ import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 
 /**
- * Un giro di stampa: una pagina per etichetta, ognuna grande quanto
- * l'etichetta e senza margini.
- *
- * La pagina NON e' un A4 con l'etichetta in mezzo: la carta della Datamax
- * e' larga quanto l'etichetta, quindi il formato pagina viene costruito
- * sulle misure in millimetri e l'area stampabile e' tutta la pagina.
- *
- * Il disegno passa da {@link Disegno}, lo stesso che fa le anteprime.
- * Quello che l'operatore vede a schermo e' letteralmente lo stesso codice
- * che va sulla carta, solo con piu' pixel per millimetro.
+ * One print run with one marginless page per label. Page dimensions match the
+ * physical label rather than embedding it in a larger sheet. Rendering goes
+ * through {@link Disegno}, the same path used by previews and exports.
  */
 public class StampaGiro implements Pageable, Printable {
 
-    /** Un punto tipografico e' 1/72 di pollice. */
+    /** One typographic point is 1/72 inch. */
     public static final double PUNTI_PER_MM = 72.0 / 25.4;
 
     private final Etichetta etichetta;
@@ -85,9 +78,9 @@ public class StampaGiro implements Pageable, Printable {
     }
 
     /**
-     * Apre la finestra di stampa di Windows e stampa.
+     * Opens the system print dialog and prints the run.
      *
-     * @return falso se l'operatore ha annullato dalla finestra di sistema.
+     * @return false when the operator cancels the system dialog
      */
     public boolean manda(String nomeGiro) throws PrinterException {
         PrinterJob lavoro = PrinterJob.getPrinterJob();

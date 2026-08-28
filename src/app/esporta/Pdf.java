@@ -13,16 +13,11 @@ import java.util.Locale;
 import java.util.zip.Deflater;
 
 /**
- * Un PDF minimo, scritto a mano.
+ * Minimal dependency-free PDF writer.
  *
- * Non serve un motore tipografico: un'etichetta e' una pagina grande
- * quanto l'etichetta con dentro un'immagine ad alta risoluzione. Fatta
- * cosi', la pagina misura in millimetri quello che misura la carta vera,
- * e chi la apre non deve indovinare nessuna scala.
- *
- * L'alternativa - PDF vettoriale con i font dentro - vorrebbe l'incorporamento
- * dei caratteri, che e' un progetto a se'. Per un'etichetta a 600 dpi la
- * differenza non si vede nemmeno con la lente.
+ * Each label becomes a page with the exact physical dimensions and a high-DPI
+ * raster image, so viewers do not need to infer any scale. Embedding vector
+ * fonts would add substantial complexity without improving the calibrated print path.
  */
 public final class Pdf {
 
@@ -49,7 +44,7 @@ public final class Pdf {
         double w = larghezzaMm * PUNTI_PER_MM;
         double h = altezzaMm * PUNTI_PER_MM;
 
-        /* 1 catalogo, 2 elenco pagine, poi per ogni pagina: pagina, contenuto, immagine */
+        /* catalog, page list, then page/content/image objects for each label */
         int quante = pagine.size();
         List<byte[]> oggetti = new ArrayList<byte[]>();
 

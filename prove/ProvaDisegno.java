@@ -11,8 +11,8 @@ import java.awt.image.BufferedImage;
 import java.util.List;
 
 /**
- * Il renderer. La cosa che conta davvero: la tessera della vetrina e il
- * foglio grande devono mostrare la stessa etichetta, non due parenti.
+ * Renderer regression coverage. Gallery previews and the editor canvas must
+ * show the same label geometry rather than separate approximations.
  */
 public final class ProvaDisegno {
 
@@ -21,33 +21,33 @@ public final class ProvaDisegno {
     private static final SorgenteQr QR = new QrVero();
 
     public static void esegui() {
-        Prove.suite("Disegno - la carta");
+        Prove.suite("Renderer geometry");
 
         List<Etichetta> tutte = Libreria.iniziale();
         for (Etichetta e : tutte) {
             BufferedImage im = rendi(e, 8);
             double inchiostro = quotaInchiostro(im);
-            Prove.vero(e.nome() + ": qualcosa e' stato stampato", inchiostro > 0.01);
-            Prove.vero(e.nome() + ": la carta non e' tutta nera", inchiostro < 0.6);
-            Prove.vero(e.nome() + ": l'angolo in alto a sinistra resta carta",
+            Prove.vero(e.nome() + ": contains rendered ink", inchiostro > 0.01);
+            Prove.vero(e.nome() + ": paper is not filled black", inchiostro < 0.6);
+            Prove.vero(e.nome() + ": top-left corner remains paper",
                     bianco(im.getRGB(0, 0)));
         }
 
         BufferedImage a = rendi(tutte.get(0), 8);
         BufferedImage b = rendi(tutte.get(0), 8);
-        Prove.vero("due disegni della stessa etichetta sono identici", identiche(a, b));
+        Prove.vero("two renders of the same label are identical", identiche(a, b));
 
-        /* la prova che conta: stessa impronta a scale diverse */
+        /* The physical ink footprint must stay stable across render scales. */
         for (Etichetta e : tutte) {
             double[] piccola = impronta(rendi(e, 4), 4);
             double[] grande = impronta(rendi(e, 14), 14);
-            Prove.vicino(e.nome() + ": inchiostro dal bordo sinistro",
+            Prove.vicino(e.nome() + ": left ink offset",
                     piccola[0], grande[0], 1.0);
-            Prove.vicino(e.nome() + ": inchiostro dal bordo alto",
+            Prove.vicino(e.nome() + ": top ink offset",
                     piccola[1], grande[1], 1.0);
-            Prove.vicino(e.nome() + ": larghezza dell'impronta",
+            Prove.vicino(e.nome() + ": ink footprint width",
                     piccola[2], grande[2], 1.0);
-            Prove.vicino(e.nome() + ": altezza dell'impronta",
+            Prove.vicino(e.nome() + ": ink footprint height",
                     piccola[3], grande[3], 1.0);
         }
     }
@@ -67,7 +67,7 @@ public final class ProvaDisegno {
         return im;
     }
 
-    /** x, y, larghezza, altezza dell'inchiostro, in millimetri. */
+    /** Ink x, y, width and height in millimetres. */
     static double[] impronta(BufferedImage im, double mmPx) {
         int minX = im.getWidth();
         int minY = im.getHeight();

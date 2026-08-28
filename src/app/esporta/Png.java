@@ -11,7 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 
-/** Esportazione come immagine, alla risoluzione che serve. */
+/** Raster export at the requested resolution. */
 public final class Png {
 
     private Png() { }

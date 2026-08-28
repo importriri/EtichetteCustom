@@ -16,11 +16,8 @@ import java.util.List;
 import java.util.Date;
 
 /**
- * Il registro: una riga per etichetta stampata, un file al giorno.
- *
- * Serve quando fra sei mesi qualcuno chiede "questo codice quando e'
- * uscito e con che lotto". Il file e' in chiaro, separato da tabulazioni:
- * si apre con Excel, si cerca con Blocco note, non serve il programma.
+ * Append-only print log with one row per printed label and one file per day.
+ * The tab-separated format stays readable without the application.
  */
 public class Registro {
 
@@ -42,7 +39,7 @@ public class Registro {
         return new File(cartella, new SimpleDateFormat("yyyy-MM-dd").format(quando) + ".log");
     }
 
-    /** Annota un giro intero. Una riga per etichetta. */
+    /** Appends one complete print run, one row per label. */
     public File annota(Etichetta eti, String[] codici, String stampante) throws IOException {
         if (codici == null || codici.length == 0) {
             throw new IllegalArgumentException("un giro senza codici non si annota");
@@ -50,7 +47,7 @@ public class Registro {
         Date adesso = new Date();
         File file = fileDi(adesso);
         if (!cartella.isDirectory() && !cartella.mkdirs()) {
-            throw new IOException("non riesco a creare la cartella del registro: " + cartella);
+            throw new IOException("cannot create print-log directory: " + cartella);
         }
         boolean nuovo = !file.exists() || file.length() == 0;
 
@@ -59,8 +56,7 @@ public class Registro {
             b.append("# etichette-custom - registro delle stampe\n");
             b.append("giro\tora\tetichetta\tcodice\tcampi chiesti\tstampante\n");
         }
-        /* il numero del giro distingue due stampe fatte nello stesso secondo:
-           senza, rileggendo il registro sembrerebbero una sola */
+        /* The run suffix separates two prints completed during the same millisecond. */
         String giro = new SimpleDateFormat("HHmmssSSS").format(adesso) + "-" + (prossimoGiro++);
         String ora = new SimpleDateFormat("HH:mm:ss").format(adesso);
         String chiesti = chiesti(eti);
@@ -89,7 +85,7 @@ public class Registro {
         return b.toString();
     }
 
-    /** Un giro come si legge nel registro. */
+    /** One print run reconstructed from the daily log. */
     public static final class Giro {
         private final String quando;
         private final String etichetta;
@@ -112,11 +108,7 @@ public class Registro {
         public int quante() { return quante; }
     }
 
-    /**
-     * Gli ultimi giri, dal piu' recente. Rilegge i file degli ultimi
-     * giorni e raggruppa le righe: nel registro c'e' una riga per
-     * etichetta, ma quello che l'operatore riconosce e' il giro.
-     */
+    /** Returns recent print runs, newest first, by grouping rows from daily logs. */
     public List<Giro> ultimi(int quanti) {
         List<Giro> out = new ArrayList<Giro>();
         Calendar c = Calendar.getInstance();
@@ -197,8 +189,8 @@ public class Registro {
             } finally {
                 in.close();
             }
-        } catch (IOException nonLeggibile) {
-            /* un registro illeggibile non deve impedire di lavorare */
+        } catch (IOException ignored) {
+            /* An unreadable history file must not block production work. */
             return out;
         }
         return out;

@@ -20,9 +20,8 @@ import java.util.List;
 import javax.imageio.ImageIO;
 
 /**
- * Scrive un PNG con le due schermate, senza aprire finestre.
- * Serve per guardare il risultato dove Java non c'e' - e per accorgersi
- * subito se una schermata esce vuota.
+ * Writes an off-screen PNG contact sheet for quick visual inspection without
+ * opening application windows.
  */
 public final class Provino {
 
@@ -40,7 +39,7 @@ public final class Provino {
 
         java.io.File casa = java.io.File.createTempFile("provino", "");
         if (!casa.delete() || !casa.mkdirs()) {
-            throw new IllegalStateException("non riesco a preparare " + casa);
+            throw new IllegalStateException("cannot prepare " + casa);
         }
         casa.deleteOnExit();
         app.archivio.Registro registro = new app.archivio.Registro(casa);
@@ -108,7 +107,7 @@ public final class Provino {
         return y + h;
     }
 
-    /** Comandi che non fanno niente: alle prove interessa il disegno, non i clic. */
+    /** No-op commands: the proof image exercises rendering rather than clicks. */
     static Vetrina.Comandi comandiFinti() {
         return new Vetrina.Comandi() {
             @Override
@@ -137,12 +136,12 @@ public final class Provino {
         };
     }
 
-    /** Una cartella usa e getta, cosi' le prove non sporcano niente. */
+    /** Disposable directory that keeps proof generation isolated. */
     static java.io.File nuovaCartella() {
         try {
             java.io.File f = java.io.File.createTempFile("etichette-prova", "");
             if (!f.delete() || !f.mkdirs()) {
-                throw new IllegalStateException("non riesco a preparare " + f);
+                throw new IllegalStateException("cannot prepare " + f);
             }
             f.deleteOnExit();
             return f;

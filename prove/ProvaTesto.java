@@ -3,29 +3,90 @@ package prove;
 import app.render.Misuratore;
 import app.render.Testo;
 
-/** Regressioni dell'impaginazione automatica dei codici lunghi. */
+/** Regression coverage for automatic long-code wrapping. */
 public final class ProvaTesto {
-    private ProvaTesto(){}
-    private static final Misuratore PASSO_FISSO=new Misuratore(){@Override public double larghezza(String testo,double corpoMm,boolean grassetto){return testo.length()*corpoMm*.6;}};
-    public static void esegui(){
-        Prove.suite("Testo - andata a capo e ripiego");
-        String codice="740125.003_01-02_584700349";
-        Testo.Esito e=Testo.componi(codice,46,4.4,3,false,PASSO_FISSO);
-        Prove.uguale("il codice vero sta su due righe",2,e.quanteRighe());
-        Prove.vero("va a capo su un separatore naturale, non in mezzo a un numero",naturale(e.righe()[0]));
-        Prove.vero("le due righe sono abbastanza equilibrate",Math.abs(e.righe()[0].length()-e.righe()[1].length())<=4);
-        Prove.vero("a corpo pieno: non ha rimpicciolito niente",!e.rimpicciolito());
-        Prove.vicino("il corpo e' rimasto quello scelto",4.4,e.corpo(),.001);
-        Prove.uguale("rimesse insieme, le righe sono il codice",codice,e.righe()[0]+e.righe()[1]);
-        String cifre="000000000000000000000000000001";
-        Testo.Esito f=Testo.componi(cifre,46,4.4,3,false,PASSO_FISSO);
-        Prove.vero("un codice tutto cifre trova comunque dove andare a capo",f.quanteRighe()>=2);
-        Prove.vero("senza rimpicciolire, se le righe bastano",!f.rimpicciolito());StringBuilder rimesso=new StringBuilder();for(String r:f.righe())rimesso.append(r);Prove.uguale("non si perde nemmeno una cifra",cifre,rimesso.toString());
-        Testo.Esito g=Testo.componi(cifre,46,4.4,1,false,PASSO_FISSO);Prove.uguale("con una riga sola resta una riga sola",1,g.quanteRighe());Prove.vero("e solo allora rimpicciolisce",g.rimpicciolito());Prove.vero("il corpo scende sotto quello scelto",g.corpo()<4.4);Prove.vero("ma non sotto il fondo scala",g.corpo()>=4.4*.4-.01);Prove.vero("e a quel corpo il testo ci sta davvero",PASSO_FISSO.larghezza(g.righe()[0],g.corpo(),false)<=46.001);
-        Testo.Esito h=Testo.componi("D04",14,6.5,1,true,PASSO_FISSO);Prove.uguale("una sigla corta resta su una riga",1,h.quanteRighe());Prove.vero("e non viene toccata",!h.rimpicciolito());
-        Testo.Esito i=Testo.componi("",20,3,2,false,PASSO_FISSO);Prove.uguale("il testo vuoto non fa esplodere niente",1,i.quanteRighe());
-        Testo.Esito j=Testo.componi(codice,46,4.4,3,3,false,PASSO_FISSO);Prove.uguale("tre righe richieste producono tre righe",3,j.quanteRighe());StringBuilder tre=new StringBuilder();for(String r:j.righe())tre.append(r);Prove.uguale("anche con tre righe non si perde niente",codice,tre.toString());
-        Prove.esplode("una larghezza negativa e' un errore di chi chiama",IllegalArgumentException.class,new Runnable(){@Override public void run(){Testo.componi("x",-1,3,2,false,PASSO_FISSO);}});
+    private static final Misuratore FIXED = new Misuratore() {
+        @Override public double larghezza(String text, double bodyMm, boolean bold) {
+            return text.length() * bodyMm * .6;
+        }
+    };
+
+    private ProvaTesto() { }
+
+    public static void esegui() {
+        Prove.suite("Text wrapping and fallback");
+
+        String source = "210150.002_02-01.262350009";
+        String[] groups = Testo.parti(source);
+        Prove.uguale("logical grouping finds five source blocks", 5, groups.length);
+        Prove.uguale("first logical group stays exact", "210150", groups[0]);
+        Prove.uguale("second logical group stays exact", "002", groups[1]);
+        Prove.uguale("last logical group stays exact", "262350009", groups[4]);
+        Prove.uguale("a selected group is derived without changing the source",
+                "002", Testo.parte(source, 2));
+        Prove.uguale("group zero always means the complete source", source, Testo.parte(source, 0));
+
+        String code = "740125.003_01-02_584700349";
+        Testo.Esito balanced = Testo.componi(code, 46, 4.4, 3, false, FIXED);
+        Prove.uguale("a long code fits on two lines", 2, balanced.quanteRighe());
+        Prove.vero("the first cut follows a natural separator", naturale(balanced.righe()[0]));
+        Prove.vero("the two lines stay reasonably balanced",
+                Math.abs(balanced.righe()[0].length() - balanced.righe()[1].length()) <= 4);
+        Prove.vero("full-size text is retained when it already fits", !balanced.rimpicciolito());
+        Prove.vicino("the requested body size is retained", 4.4, balanced.corpo(), .001);
+        Prove.uguale("joining the lines reconstructs the code", code,
+                balanced.righe()[0] + balanced.righe()[1]);
+
+        String hiddenSeparators = "210150 002 02 01 262350009";
+        Testo.Esito linuxRegression = Testo.componi(hiddenSeparators, 18, 4.4, 3, false, FIXED);
+        Prove.uguale("the photographed Linux case uses three logical lines", 3,
+                linuxRegression.quanteRighe());
+        Prove.uguale("the first numeric group stays intact", "210150", linuxRegression.righe()[0]);
+        Prove.uguale("the middle numeric groups stay intact", "002 02 01", linuxRegression.righe()[1]);
+        Prove.uguale("the final numeric group stays intact", "262350009", linuxRegression.righe()[2]);
+        Prove.vero("logical groups are preferred even when a smaller body is needed",
+                linuxRegression.rimpicciolito());
+
+        String digits = "000000000000000000000000000001";
+        Testo.Esito fallback = Testo.componi(digits, 46, 4.4, 3, false, FIXED);
+        Prove.vero("digits-only text still finds a fallback wrap", fallback.quanteRighe() >= 2);
+        Prove.vero("digits-only text does not shrink when fallback lines already fit",
+                !fallback.rimpicciolito());
+        StringBuilder rebuilt = new StringBuilder();
+        for (String line : fallback.righe()) rebuilt.append(line);
+        Prove.uguale("fallback wrapping never loses a digit", digits, rebuilt.toString());
+
+        Testo.Esito oneLine = Testo.componi(digits, 46, 4.4, 1, false, FIXED);
+        Prove.uguale("one requested line remains one line", 1, oneLine.quanteRighe());
+        Prove.vero("one line shrinks only when needed", oneLine.rimpicciolito());
+        Prove.vero("the fallback body is smaller than the requested body", oneLine.corpo() < 4.4);
+        Prove.vero("the fallback body respects the lower bound", oneLine.corpo() >= 4.4 * .4 - .01);
+        Prove.vero("the resulting line actually fits",
+                FIXED.larghezza(oneLine.righe()[0], oneLine.corpo(), false) <= 46.001);
+
+        Testo.Esito shortText = Testo.componi("D04", 14, 6.5, 1, true, FIXED);
+        Prove.uguale("short text stays on one line", 1, shortText.quanteRighe());
+        Prove.vero("short text keeps its body size", !shortText.rimpicciolito());
+
+        Testo.Esito empty = Testo.componi("", 20, 3, 2, false, FIXED);
+        Prove.uguale("empty text is handled safely", 1, empty.quanteRighe());
+
+        Testo.Esito three = Testo.componi(code, 46, 4.4, 3, 3, false, FIXED);
+        Prove.uguale("an explicit three-line layout produces three lines", 3, three.quanteRighe());
+        StringBuilder threeJoined = new StringBuilder();
+        for (String line : three.righe()) threeJoined.append(line);
+        Prove.uguale("explicit wrapping keeps every character", code, threeJoined.toString());
+
+        Prove.esplode("negative width is rejected", IllegalArgumentException.class,
+                new Runnable() {
+                    @Override public void run() {
+                        Testo.componi("x", -1, 3, 2, false, FIXED);
+                    }
+                });
     }
-    private static boolean naturale(String s){if(s==null||s.isEmpty())return false;return " _-./:;,".indexOf(s.charAt(s.length()-1))>=0;}
+
+    private static boolean naturale(String text) {
+        if (text == null || text.isEmpty()) return false;
+        return " _-./:;,".indexOf(text.charAt(text.length() - 1)) >= 0;
+    }
 }

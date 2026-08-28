@@ -18,9 +18,8 @@ import java.awt.image.BufferedImage;
 import java.util.List;
 
 /**
- * Le due schermate si costruiscono e si disegnano senza schermo.
- * Non e' una prova di bellezza: e' la prova che nulla esplode e che
- * quello che appare non e' un rettangolo vuoto.
+ * Off-screen smoke coverage for major screens. It verifies that construction and
+ * rendering work without producing empty surfaces or throwing exceptions.
  */
 public final class ProvaSchermate {
 
@@ -29,25 +28,25 @@ public final class ProvaSchermate {
     private static final SorgenteQr QR = new QrVero();
 
     public static void esegui() {
-        Prove.suite("Schermate - vetrina e banco");
+        Prove.suite("Gallery and editor screens");
 
         List<Etichetta> tutte = Libreria.iniziale();
 
         Tessera t = new Tessera(tutte.get(0), QR);
         BufferedImage im = ritratto(t, t.getPreferredSize().width,
                 t.getPreferredSize().height);
-        Prove.vero("la tessera disegna qualcosa", colori(im) > 3);
-        Prove.vero("la tessera mostra della carta bianca", contieneBianco(im));
+        Prove.vero("gallery card renders meaningful content", colori(im) > 3);
+        Prove.vero("gallery card contains white label paper", contieneBianco(im));
 
         Vetrina v = new Vetrina(tutte, QR, comandiFinti());
         BufferedImage iv = ritratto(v, 1200, 700);
-        Prove.vero("la vetrina non e' una pagina vuota", colori(iv) > 6);
+        Prove.vero("gallery is not an empty surface", colori(iv) > 6);
 
         Banco b = new Banco(tutte.get(0), QR, new Impostazioni(),
                 new Archivio(nuovaCartella()), new Registro(nuovaCartella()), () -> { });
         BufferedImage ib = ritratto(b, 1280, 760);
-        Prove.vero("il banco non e' una pagina vuota", colori(ib) > 6);
-        Prove.vero("il banco mostra la carta bianca", contieneBianco(ib));
+        Prove.vero("editor is not an empty surface", colori(ib) > 6);
+        Prove.vero("editor contains white label paper", contieneBianco(ib));
     }
 
     private static BufferedImage ritratto(Component c, int w, int h) {
@@ -62,7 +61,7 @@ public final class ProvaSchermate {
         return im;
     }
 
-    /** Impagina a mano: senza finestra vera, validate() non farebbe nulla. */
+    /** Lays out manually because validate() has no window hierarchy off-screen. */
     static void impagina(Component c, int w, int h) {
         c.setSize(w, h);
         if (c instanceof Container) {
@@ -98,7 +97,7 @@ public final class ProvaSchermate {
         return false;
     }
 
-    /** Comandi che non fanno niente: alle prove interessa il disegno, non i clic. */
+    /** No-op commands: this suite tests rendering rather than interaction. */
     static Vetrina.Comandi comandiFinti() {
         return new Vetrina.Comandi() {
             @Override
@@ -127,12 +126,12 @@ public final class ProvaSchermate {
         };
     }
 
-    /** Una cartella usa e getta, cosi' le prove non sporcano niente. */
+    /** Disposable directory that keeps tests isolated from user data. */
     static java.io.File nuovaCartella() {
         try {
             java.io.File f = java.io.File.createTempFile("etichette-prova", "");
             if (!f.delete() || !f.mkdirs()) {
-                throw new IllegalStateException("non riesco a preparare " + f);
+                throw new IllegalStateException("cannot prepare " + f);
             }
             f.deleteOnExit();
             return f;

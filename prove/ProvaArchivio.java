@@ -13,16 +13,242 @@ import app.modello.Tipo;
 import java.io.File;
 import java.util.List;
 
-/** Salvataggio, ricarica e registro. */
+/** Persistence, reload and print-log regression coverage. */
 public final class ProvaArchivio {
-    private ProvaArchivio(){}
-    public static void esegui() throws Exception {formato();cartella();registro();}
-    private static void formato(){Prove.suite("Formato - andata e ritorno su disco");for(Etichetta originale:Libreria.iniziale()){String scritto=Formato.scrivi(originale);Etichetta riletta=Formato.leggi(scritto);Prove.uguale(originale.nome()+": il nome torna",originale.nome(),riletta.nome());Prove.vicino(originale.nome()+": la larghezza torna",originale.larghezza(),riletta.larghezza(),.001);Prove.uguale(originale.nome()+": tornano tutti i campi",originale.campi().size(),riletta.campi().size());Prove.uguale(originale.nome()+": tornano tutti gli elementi",originale.elementi().size(),riletta.elementi().size());Prove.uguale(originale.nome()+": riscritto e' identico",scritto,Formato.scrivi(riletta));if(originale.serie()!=null)Prove.uguale(originale.nome()+": la serie riparte da dove era",originale.serie().codice(originale.serie().prossimo()),riletta.serie().codice(riletta.serie().prossimo()));}Etichetta e=new Etichetta("Nome\tcon\ttab\ne a capo",40,20);e.aggiungi(new Campo("strano",Comportamento.FISSO,"valore\tcon\ttab"));e.aggiungi(new Elemento("El",Tipo.TESTO,"strano",1,1,10));Etichetta tornata=Formato.leggi(Formato.scrivi(e));Prove.uguale("tabulazioni e a capo nel nome non spezzano il file",e.nome(),tornata.nome());Prove.uguale("nemmeno dentro un valore","valore\tcon\ttab",tornata.campo("strano").valore());Etichetta conQr=new Etichetta("Con QR",50,30);conQr.aggiungi(new Campo("c",Comportamento.FISSO,"X"));Elemento q=new Elemento("QR",Tipo.QR,"c",2,2,20);q.correzione(Correzione.H);q.rotazione(270);conQr.aggiungi(q);Etichetta rq=Formato.leggi(Formato.scrivi(conQr));Etichetta finestra=Libreria.articolo();Prove.vero("la finestra dell'incremento si puo' allargare",finestra.cambiaFinestra(6));Prove.uguale("e il codice corrente non cambia","740125.003_01-02_584700349",finestra.serie().codice(finestra.serie().prossimo()));Prove.uguale("cambiano solo le cifre che si muovono",6,finestra.serie().cifre());Prove.vero("nove cifre stanno ancora dentro il codice",finestra.cambiaFinestra(9));Prove.vero("dieci no: sforerebbero nell'underscore e traboccherebbero l'intero",!finestra.cambiaFinestra(10));Prove.uguale("e in quel caso la finestra resta com'era",9,finestra.serie().cifre());Etichetta senza=new Etichetta("Senza serie",40,20);senza.aggiungi(new Campo("codice",Comportamento.FISSO,"PZ-000045"));Prove.vero("un campo messo su progressivo si costruisce la sua serie",senza.assicuraSerie("codice",3));Prove.uguale("prendendo le ultime cifre del valore che aveva",45,senza.serie().prossimo());Prove.uguale("il livello di correzione si salva",Correzione.H,rq.elementi().get(0).correzione());Prove.uguale("la rotazione si salva",270,rq.elementi().get(0).rotazione());Prove.esplode("un file di un altro programma viene rifiutato",IllegalArgumentException.class,new Runnable(){@Override public void run(){Formato.leggi("ciao\nsono un file qualunque");}});Prove.esplode("un file vuoto viene rifiutato",IllegalArgumentException.class,new Runnable(){@Override public void run(){Formato.leggi("");}});String conRigaIgnota=Formato.scrivi(Libreria.articolo())+"cosa-che-non-conosco\tqualcosa\n";Prove.vero("una riga sconosciuta viene saltata invece di far fallire tutto",Formato.leggi(conRigaIgnota).elementi().size()==4);Etichetta copia=Libreria.articolo().copia();Prove.uguale("la copia e' identica all'originale",Formato.scrivi(Libreria.articolo()),Formato.scrivi(copia));copia.elementi().get(0).x(99);Prove.vero("ma e' davvero indipendente",Libreria.articolo().elementi().get(0).x()!=99);}
-    private static void cartella() throws Exception {Prove.suite("Archivio - la cartella delle etichette");File dove=temporanea("archivio");Archivio a=new Archivio(dove);List<Etichetta> prime=a.carica();Prove.uguale("al primo avvio compare una sola etichetta di esempio",1,prime.size());Prove.uguale("e viene scritto un solo file",1,quantiFile(dove));Prove.uguale("l'esempio iniziale e' quello v2","Esempio",prime.get(0).nome());Etichetta esempio=prime.get(0);esempio.serie().consuma(4);a.salva(esempio);Archivio b=new Archivio(dove);List<Etichetta> riprese=b.carica();Prove.uguale("riaprendo si ritrova solo cio' che era salvato",1,riprese.size());boolean contatoreSalvo=riprese.get(0).serie().prossimo()==esempio.serie().prossimo();Prove.vero("il contatore della serie sopravvive alla chiusura",contatoreSalvo);Etichetta nuova=new Etichetta("Prova / con \\ caratteri strani: 100%",30,20);nuova.aggiungi(new Campo("c",Comportamento.FISSO,"x"));nuova.aggiungi(new Elemento("T",Tipo.TESTO,"c",1,1,20));b.salva(nuova);Prove.vero("un nome pieno di caratteri strani diventa un nome di file sano",b.fileDi(nuova).getName().matches("[a-z0-9-]+\\.etichetta"));nuova.nome("Rinominata");b.salva(nuova);Prove.uguale("rinominare non lascia in giro il file vecchio",2,quantiFile(dove));Prove.vero("e il file nuovo ha il nome nuovo",b.fileDi(nuova).getName().startsWith("rinominata"));b.elimina(nuova);Prove.uguale("eliminare toglie il file",1,quantiFile(dove));File rotto=new File(dove,"rovinato.etichetta");scrivi(rotto,"non sono un formato valido");Archivio c=new Archivio(dove);Prove.uguale("un file rovinato non impedisce di aprire gli altri",1,c.carica().size());}
-    private static void registro() throws Exception {Prove.suite("Registro - una riga per etichetta");File dove=temporanea("registro");Registro r=new Registro(dove);Etichetta eti=Libreria.articolo();String[] codici=eti.serie().giro(3);File primo=r.annota(eti,codici,"Datamax E-4203");Prove.vero("il file del giorno viene creato",primo.isFile());String testo=leggi(primo);Prove.uguale("tre etichette, tre righe piu' intestazione e commento",5,testo.split("\n").length);Prove.vero("ogni riga porta il numero del giro",testo.contains("\t"+ora(testo)));Prove.vero("dentro c'e' il primo codice",testo.contains(codici[0]));Prove.vero("dentro c'e' l'ultimo codice",testo.contains(codici[2]));Prove.vero("e la stampante",testo.contains("Datamax E-4203"));Prove.vero("il campo chiesto e' annotato col suo valore",testo.contains("lotto=4802-X"));r.annota(eti,codici,"Datamax E-4203");String dopo=leggi(primo);Prove.uguale("il secondo giro si accoda senza ripetere l'intestazione",8,dopo.split("\n").length);List<Registro.Giro> letti=r.ultimi(10);Prove.uguale("rileggendo il registro tornano due giri",2,letti.size());Prove.uguale("il piu' recente e' in cima",eti.nome(),letti.get(0).etichetta());Prove.uguale("con tre etichette dentro",3,letti.get(0).quante());Prove.uguale("dal primo codice",codici[0],letti.get(0).primo());Prove.uguale("all'ultimo",codici[2],letti.get(0).ultimo());Registro vuoto=new Registro(temporanea("registro-vuoto"));Prove.uguale("un registro mai scritto torna una lista vuota, non un errore",0,vuoto.ultimi(5).size());Prove.esplode("un giro senza codici non si annota",IllegalArgumentException.class,new Runnable(){@Override public void run(){try{new Registro(new File(".")).annota(Libreria.articolo(),new String[0],"x");}catch(java.io.IOException impossibile){throw new IllegalStateException(impossibile);}}});}
-    private static String ora(String registro){for(String riga:registro.split("\n"))if(!riga.startsWith("#")&&!riga.startsWith("giro\t")&&riga.contains("\t"))return riga.split("\t")[1];return "";}
-    static File temporanea(String etichetta)throws Exception{File f=File.createTempFile("etichette-"+etichetta,"");if(!f.delete()||!f.mkdirs())throw new IllegalStateException("non riesco a preparare "+f);f.deleteOnExit();return f;}
-    private static int quantiFile(File cartella){File[] f=cartella.listFiles();int quanti=0;if(f!=null)for(File x:f)if(x.isFile()&&x.getName().endsWith(".etichetta"))quanti++;return quanti;}
-    private static void scrivi(File f,String testo)throws Exception{java.io.Writer w=new java.io.OutputStreamWriter(new java.io.FileOutputStream(f),"UTF-8");try{w.write(testo);}finally{w.close();}}
-    private static String leggi(File f)throws Exception{java.io.InputStream in=new java.io.FileInputStream(f);try{java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();byte[] b=new byte[4096];int n;while((n=in.read(b))>0)out.write(b,0,n);return new String(out.toByteArray(),"UTF-8");}finally{in.close();}}
+    private ProvaArchivio() { }
+
+    public static void esegui() throws Exception {
+        formato();
+        cartella();
+        registro();
+    }
+
+    private static void formato() {
+        Prove.suite("Format round trip");
+        for (Etichetta original : Libreria.iniziale()) {
+            String written = Formato.scrivi(original);
+            Etichetta restored = Formato.leggi(written);
+            Prove.uguale(original.nome() + ": name survives", original.nome(), restored.nome());
+            Prove.vicino(original.nome() + ": width survives",
+                    original.larghezza(), restored.larghezza(), .001);
+            Prove.uguale(original.nome() + ": every field survives",
+                    original.campi().size(), restored.campi().size());
+            Prove.uguale(original.nome() + ": every element survives",
+                    original.elementi().size(), restored.elementi().size());
+            Prove.uguale(original.nome() + ": rewrite is stable",
+                    written, Formato.scrivi(restored));
+            if (original.serie() != null) {
+                Prove.uguale(original.nome() + ": sequence resumes at the same value",
+                        original.serie().codice(original.serie().prossimo()),
+                        restored.serie().codice(restored.serie().prossimo()));
+            }
+        }
+
+        Etichetta escaped = new Etichetta("Name\twith\ttabs\nand newline", 40, 20);
+        escaped.aggiungi(new Campo("odd", Comportamento.FISSO, "value\twith\ttab"));
+        escaped.aggiungi(new Elemento("El", Tipo.TESTO, "odd", 1, 1, 10));
+        Etichetta escapedRoundTrip = Formato.leggi(Formato.scrivi(escaped));
+        Prove.uguale("tabs and newlines in a name do not split the file",
+                escaped.nome(), escapedRoundTrip.nome());
+        Prove.uguale("tabs inside a value survive too", "value\twith\ttab",
+                escapedRoundTrip.campo("odd").valore());
+
+        Etichetta withQr = new Etichetta("With QR", 50, 30);
+        withQr.aggiungi(new Campo("c", Comportamento.FISSO, "X"));
+        Elemento qr = new Elemento("QR", Tipo.QR, "c", 2, 2, 20);
+        qr.correzione(Correzione.H);
+        qr.rotazione(270);
+        withQr.aggiungi(qr);
+        Etichetta qrRoundTrip = Formato.leggi(Formato.scrivi(withQr));
+
+        Etichetta window = Libreria.articolo();
+        Prove.vero("increment window can be widened", window.cambiaFinestra(6));
+        Prove.uguale("widening does not change the current code",
+                "740125.003_01-02_584700349",
+                window.serie().codice(window.serie().prossimo()));
+        Prove.uguale("only the configured digits move", 6, window.serie().cifre());
+        Prove.vero("nine digits still fit the source", window.cambiaFinestra(9));
+        Prove.vero("ten digits are rejected before crossing the separator",
+                !window.cambiaFinestra(10));
+        Prove.uguale("a rejected change leaves the previous window intact",
+                9, window.serie().cifre());
+
+        Etichetta noSeries = new Etichetta("No sequence", 40, 20);
+        noSeries.aggiungi(new Campo("code", Comportamento.FISSO, "PZ-000045"));
+        Prove.vero("switching a field to progressive can create its sequence",
+                noSeries.assicuraSerie("code", 3));
+        Prove.uguale("the new sequence starts from the existing trailing digits",
+                45, noSeries.serie().prossimo());
+
+        Prove.uguale("QR correction level is persisted",
+                Correzione.H, qrRoundTrip.elementi().get(0).correzione());
+        Prove.uguale("rotation is persisted", 270,
+                qrRoundTrip.elementi().get(0).rotazione());
+
+        Prove.esplode("foreign file formats are rejected", IllegalArgumentException.class,
+                new Runnable() {
+                    @Override public void run() {
+                        Formato.leggi("hello\nthis is not a label file");
+                    }
+                });
+        Prove.esplode("empty files are rejected", IllegalArgumentException.class,
+                new Runnable() {
+                    @Override public void run() {
+                        Formato.leggi("");
+                    }
+                });
+
+        String unknownLine = Formato.scrivi(Libreria.articolo())
+                + "unknown-record\tsomething\n";
+        Prove.vero("unknown records are skipped for forward compatibility",
+                Formato.leggi(unknownLine).elementi().size() == 4);
+
+        Etichetta copy = Libreria.articolo().copia();
+        Prove.uguale("a deep copy initially serializes identically",
+                Formato.scrivi(Libreria.articolo()), Formato.scrivi(copy));
+        copy.elementi().get(0).x(99);
+        Prove.vero("the deep copy is independent",
+                Libreria.articolo().elementi().get(0).x() != 99);
+    }
+
+    private static void cartella() throws Exception {
+        Prove.suite("Archive directory");
+        File dir = temporanea("archive");
+        Archivio archive = new Archivio(dir);
+        List<Etichetta> initial = archive.carica();
+        Prove.uguale("first run seeds exactly one example label", 1, initial.size());
+        Prove.uguale("first run writes exactly one label file", 1, quantiFile(dir));
+        Prove.uguale("the seeded label is the v2 example", "Esempio", initial.get(0).nome());
+
+        Etichetta example = initial.get(0);
+        example.serie().consuma(4);
+        archive.salva(example);
+        Archivio reopened = new Archivio(dir);
+        List<Etichetta> restored = reopened.carica();
+        Prove.uguale("reopen returns only saved labels", 1, restored.size());
+        Prove.vero("sequence state survives application restart",
+                restored.get(0).serie().prossimo() == example.serie().prossimo());
+
+        Etichetta newLabel = new Etichetta("Test / with \\ odd characters: 100%", 30, 20);
+        newLabel.aggiungi(new Campo("c", Comportamento.FISSO, "x"));
+        newLabel.aggiungi(new Elemento("T", Tipo.TESTO, "c", 1, 1, 20));
+        reopened.salva(newLabel);
+        Prove.vero("unsafe label names become safe file names",
+                reopened.fileDi(newLabel).getName().matches("[a-z0-9-]+\\.etichetta"));
+
+        newLabel.nome("Renamed");
+        reopened.salva(newLabel);
+        Prove.uguale("renaming removes the old file", 2, quantiFile(dir));
+        Prove.vero("the replacement file uses the new name",
+                reopened.fileDi(newLabel).getName().startsWith("renamed"));
+        reopened.elimina(newLabel);
+        Prove.uguale("deleting a label removes its file", 1, quantiFile(dir));
+
+        File corrupt = new File(dir, "corrupt.etichetta");
+        scrivi(corrupt, "not a valid format");
+        Archivio tolerant = new Archivio(dir);
+        Prove.uguale("one corrupt file does not block the remaining archive",
+                1, tolerant.carica().size());
+    }
+
+    private static void registro() throws Exception {
+        Prove.suite("Print log");
+        File dir = temporanea("log");
+        Registro log = new Registro(dir);
+        Etichetta label = Libreria.articolo();
+        String[] codes = label.serie().giro(3);
+        File first = log.annota(label, codes, "Datamax E-4203");
+        Prove.vero("daily log file is created", first.isFile());
+
+        String text = leggi(first);
+        Prove.uguale("three labels produce three rows plus header and comment",
+                5, text.split("\n").length);
+        Prove.vero("each data row carries a run identifier", text.contains("\t" + ora(text)));
+        Prove.vero("the first code is logged", text.contains(codes[0]));
+        Prove.vero("the last code is logged", text.contains(codes[2]));
+        Prove.vero("the printer name is logged", text.contains("Datamax E-4203"));
+        Prove.vero("asked-at-print values are logged", text.contains("lotto=4802-X"));
+
+        log.annota(label, codes, "Datamax E-4203");
+        String appended = leggi(first);
+        Prove.uguale("a second run appends without repeating the header",
+                8, appended.split("\n").length);
+
+        List<Registro.Giro> runs = log.ultimi(10);
+        Prove.uguale("reading the log restores two runs", 2, runs.size());
+        Prove.uguale("the newest run is first", label.nome(), runs.get(0).etichetta());
+        Prove.uguale("the restored run contains three labels", 3, runs.get(0).quante());
+        Prove.uguale("the restored first code is exact", codes[0], runs.get(0).primo());
+        Prove.uguale("the restored last code is exact", codes[2], runs.get(0).ultimo());
+
+        Registro empty = new Registro(temporanea("empty-log"));
+        Prove.uguale("a never-written log returns an empty list", 0, empty.ultimi(5).size());
+        Prove.esplode("a run with no codes cannot be logged", IllegalArgumentException.class,
+                new Runnable() {
+                    @Override public void run() {
+                        try {
+                            new Registro(new File(".")).annota(
+                                    Libreria.articolo(), new String[0], "x");
+                        } catch (java.io.IOException impossible) {
+                            throw new IllegalStateException(impossible);
+                        }
+                    }
+                });
+    }
+
+    private static String ora(String log) {
+        for (String row : log.split("\n")) {
+            if (!row.startsWith("#") && !row.startsWith("giro\t") && row.contains("\t")) {
+                return row.split("\t")[1];
+            }
+        }
+        return "";
+    }
+
+    static File temporanea(String label) throws Exception {
+        File file = File.createTempFile("etichette-" + label, "");
+        if (!file.delete() || !file.mkdirs()) {
+            throw new IllegalStateException("cannot prepare " + file);
+        }
+        file.deleteOnExit();
+        return file;
+    }
+
+    private static int quantiFile(File dir) {
+        File[] files = dir.listFiles();
+        int count = 0;
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile() && file.getName().endsWith(".etichetta")) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static void scrivi(File file, String text) throws Exception {
+        java.io.Writer writer = new java.io.OutputStreamWriter(
+                new java.io.FileOutputStream(file), "UTF-8");
+        try {
+            writer.write(text);
+        } finally {
+            writer.close();
+        }
+    }
+
+    private static String leggi(File file) throws Exception {
+        java.io.InputStream input = new java.io.FileInputStream(file);
+        try {
+            java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            int read;
+            while ((read = input.read(buffer)) > 0) {
+                output.write(buffer, 0, read);
+            }
+            return new String(output.toByteArray(), "UTF-8");
+        } finally {
+            input.close();
+        }
+    }
 }
